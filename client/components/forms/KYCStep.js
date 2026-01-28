@@ -9,61 +9,90 @@ import { ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
 export default function KYCStep({ loan, onSubmit, loading }) {
   const [agreed, setAgreed] = useState(false);
 
-  const isKYCPending = loan?.workflow_state === WORKFLOW_STATES.KYC_PENDING;
-  const isKYCCompleted = loan?.workflow_state === WORKFLOW_STATES.KYC_COMPLETED ||
+  // Backend uses 'status', normalize to handle both
+  const status = loan?.status || loan?.workflow_state;
+  
+  const isKYCPending = status === WORKFLOW_STATES.DRAFT || status === WORKFLOW_STATES.KYC_PENDING;
+  const isKYCCompleted = status === WORKFLOW_STATES.KYC_COMPLETED ||
     [WORKFLOW_STATES.CREDIT_CHECK_PENDING, WORKFLOW_STATES.CREDIT_CHECK_COMPLETED, 
-     WORKFLOW_STATES.ELIGIBLE, WORKFLOW_STATES.NOT_ELIGIBLE].includes(loan?.workflow_state);
+     WORKFLOW_STATES.ELIGIBLE, WORKFLOW_STATES.NOT_ELIGIBLE].includes(status);
 
-  const kycDetails = loan?.kyc_details;
+  // Backend returns kyc_result, not kyc_details
+  const kycDetails = loan?.kyc_result || loan?.kyc_details;
 
   return (
     <div className="space-y-6">
-      <div className="card">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">KYC Verification</h2>
-          <StatusBadge status={loan?.workflow_state} />
+      <div className="bg-white rounded-2xl shadow-card border border-dark-100 p-6 md:p-8 transition-all duration-300 hover:shadow-card-hover">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center shadow-glow">
+              <ShieldCheck className="h-5 w-5 text-dark-900" />
+            </div>
+            <h2 className="text-xl font-bold text-dark-900">KYC Verification</h2>
+          </div>
+          <StatusBadge status={status} />
         </div>
 
         {/* Application Summary */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-          <h3 className="font-medium text-gray-900 mb-3">Application Summary</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-gray-500">Applicant</p>
-              <p className="font-medium">{loan?.full_name}</p>
+        <div className="bg-gradient-to-r from-dark-50 to-dark-100 rounded-xl p-5 mb-6 border border-dark-200">
+          <h3 className="font-semibold text-dark-900 mb-4 flex items-center gap-2">
+            <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Application Summary
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <p className="text-xs text-dark-500 uppercase tracking-wide">Applicant</p>
+              <p className="font-semibold text-dark-900 mt-1">{loan?.full_name}</p>
             </div>
-            <div>
-              <p className="text-gray-500">PAN</p>
-              <p className="font-medium">{loan?.pan_number}</p>
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <p className="text-xs text-dark-500 uppercase tracking-wide">PAN</p>
+              <p className="font-semibold text-dark-900 mt-1">{loan?.pan}</p>
             </div>
-            <div>
-              <p className="text-gray-500">Monthly Income</p>
-              <p className="font-medium">₹{loan?.monthly_income?.toLocaleString()}</p>
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <p className="text-xs text-dark-500 uppercase tracking-wide">Monthly Income</p>
+              <p className="font-semibold text-dark-900 mt-1">₹{loan?.monthly_income?.toLocaleString()}</p>
             </div>
-            <div>
-              <p className="text-gray-500">Requested Amount</p>
-              <p className="font-medium">₹{loan?.requested_amount?.toLocaleString()}</p>
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <p className="text-xs text-dark-500 uppercase tracking-wide">Loan Amount</p>
+              <p className="font-semibold text-primary-700 mt-1">₹{loan?.loan_amount?.toLocaleString()}</p>
             </div>
           </div>
         </div>
 
         {/* KYC Status */}
         {isKYCCompleted && kycDetails && (
-          <div className={`rounded-lg p-4 mb-6 ${kycDetails.kyc_verified ? 'bg-green-50' : 'bg-red-50'}`}>
-            <div className="flex items-start gap-3">
-              {kycDetails.kyc_verified ? (
-                <CheckCircle className="h-6 w-6 text-green-600 mt-0.5" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
-              )}
-              <div>
-                <h3 className={`font-medium ${kycDetails.kyc_verified ? 'text-green-800' : 'text-red-800'}`}>
-                  KYC {kycDetails.kyc_verified ? 'Verified' : 'Failed'}
+          <div className={`rounded-xl p-5 mb-6 border ${kycDetails.is_verified || kycDetails.kyc_verified ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${kycDetails.is_verified || kycDetails.kyc_verified ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                {kycDetails.is_verified || kycDetails.kyc_verified ? (
+                  <CheckCircle className="h-6 w-6 text-white" />
+                ) : (
+                  <AlertCircle className="h-6 w-6 text-white" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className={`font-bold text-lg ${kycDetails.is_verified || kycDetails.kyc_verified ? 'text-emerald-800' : 'text-rose-800'}`}>
+                  KYC {kycDetails.is_verified || kycDetails.kyc_verified ? 'Verified Successfully' : 'Verification Failed'}
                 </h3>
-                <div className="mt-2 space-y-1 text-sm">
-                  <p><span className="text-gray-600">KYC Score:</span> <span className="font-medium">{kycDetails.kyc_score}/100</span></p>
-                  <p><span className="text-gray-600">Address Verified:</span> <span className="font-medium">{kycDetails.address_verified ? 'Yes' : 'No'}</span></p>
-                  <p><span className="text-gray-600">Identity Verified:</span> <span className="font-medium">{kycDetails.identity_verified ? 'Yes' : 'No'}</span></p>
+                <div className="mt-3 grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                    <p className="text-2xl font-bold text-dark-900">{kycDetails.kyc_score || kycDetails.score || 0}</p>
+                    <p className="text-xs text-dark-500">KYC Score</p>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                    <p className={`text-2xl font-bold ${kycDetails.address_verified ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {kycDetails.address_verified ? '✓' : '✗'}
+                    </p>
+                    <p className="text-xs text-dark-500">Address</p>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                    <p className={`text-2xl font-bold ${kycDetails.identity_verified ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {kycDetails.identity_verified ? '✓' : '✗'}
+                    </p>
+                    <p className="text-xs text-dark-500">Identity</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -73,30 +102,41 @@ export default function KYCStep({ loan, onSubmit, loading }) {
         {/* KYC Pending - Submit Form */}
         {isKYCPending && (
           <>
-            <div className="bg-blue-50 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="h-6 w-6 text-blue-600 mt-0.5" />
+            <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl p-5 mb-6 border border-primary-200">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center shadow-glow flex-shrink-0">
+                  <ShieldCheck className="h-6 w-6 text-dark-900" />
+                </div>
                 <div>
-                  <h3 className="font-medium text-blue-800">Identity Verification Required</h3>
-                  <p className="text-sm text-blue-700 mt-1">
+                  <h3 className="font-bold text-dark-800 text-lg">Identity Verification Required</h3>
+                  <p className="text-sm text-dark-600 mt-2 leading-relaxed">
                     We will verify your identity using your PAN and personal details. 
-                    This is a simulated verification process.
+                    This is a simulated verification process for demonstration purposes.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="border rounded-lg p-4 mb-6">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-1 h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">
+            <div className="border-2 border-dark-200 rounded-xl p-5 mb-6 bg-dark-50 hover:border-primary-300 transition-colors duration-300">
+              <label className="flex items-start gap-4 cursor-pointer">
+                <div className="relative mt-1">
+                  <input
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="w-6 h-6 border-2 border-dark-300 rounded-lg bg-white peer-checked:bg-primary-500 peer-checked:border-primary-500 transition-all duration-200 flex items-center justify-center">
+                    {agreed && (
+                      <svg className="w-4 h-4 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm text-dark-700 leading-relaxed">
                   I authorize Mini-LOS to verify my identity and access my KYC details from 
-                  government databases. I confirm that all information provided is accurate.
+                  government databases. I confirm that all information provided is accurate and true to the best of my knowledge.
                 </span>
               </label>
             </div>
@@ -108,6 +148,7 @@ export default function KYCStep({ loan, onSubmit, loading }) {
               className="w-full"
               size="lg"
             >
+              <ShieldCheck className="h-5 w-5 mr-2" />
               Submit for KYC Verification
             </Button>
           </>

@@ -1,16 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Stepper from '@/components/Stepper';
 import OnboardingForm from '@/components/forms/OnboardingForm';
 import KYCStep from '@/components/forms/KYCStep';
 import CreditStep from '@/components/forms/CreditStep';
 import EligibilityResult from '@/components/forms/EligibilityResult';
 import { useLoanApplication } from '@/hooks/useLoanApplication';
+import { authService } from '@/services/loan.service';
 import { WORKFLOW_STATES, STATE_TO_STEP } from '@/utils/constants';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 export default function LoanApplyPage() {
+  const router = useRouter();
+  const [authChecking, setAuthChecking] = useState(true);
+  const [user, setUser] = useState(null);
+  
   const {
     loan,
     loading,
@@ -25,6 +31,28 @@ export default function LoanApplyPage() {
 
   const [completedSteps, setCompletedSteps] = useState([]);
 
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth?redirect=/loan/apply');
+        return;
+      }
+
+      try {
+        const userData = await authService.getMe();
+        setUser(userData);
+        setAuthChecking(false);
+      } catch (err) {
+        localStorage.removeItem('token');
+        router.push('/auth?redirect=/loan/apply');
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
   // Update completed steps based on loan state
   useEffect(() => {
     if (loan) {
@@ -34,8 +62,9 @@ export default function LoanApplyPage() {
         completed.push(i);
       }
       // Mark current step as completed if moving to next
+      const status = loan.status || loan.workflow_state;
       if ([WORKFLOW_STATES.KYC_COMPLETED, WORKFLOW_STATES.CREDIT_CHECK_COMPLETED, 
-           WORKFLOW_STATES.ELIGIBLE, WORKFLOW_STATES.NOT_ELIGIBLE].includes(loan.workflow_state)) {
+           WORKFLOW_STATES.ELIGIBLE, WORKFLOW_STATES.NOT_ELIGIBLE].includes(status)) {
         completed.push(step);
       }
       setCompletedSteps(completed);
@@ -75,9 +104,11 @@ export default function LoanApplyPage() {
       return <OnboardingForm onSubmit={handleOnboardingSubmit} loading={loading} />;
     }
 
-    const state = loan.workflow_state;
+    // Backend uses 'status', normalize to handle both
+    const state = loan.status || loan.workflow_state;
 
-    if (state === WORKFLOW_STATES.KYC_PENDING) {
+    // After DRAFT, move to KYC step
+    if (state === WORKFLOW_STATES.DRAFT || state === WORKFLOW_STATES.KYC_PENDING) {
       return <KYCStep loan={loan} onSubmit={handleKYCSubmit} loading={loading} />;
     }
 
@@ -97,11 +128,25 @@ export default function LoanApplyPage() {
     return <OnboardingForm onSubmit={handleOnboardingSubmit} loading={loading} />;
   };
 
+  // Show loading while checking auth
+  if (authChecking) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary-500 mx-auto mb-4" />
+          <p className="text-dark-500">Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Loan Application</h1>
-        <p className="text-gray-600">Complete the following steps to apply for a loan</p>
+        <p className="text-gray-600">
+          Welcome, <span className="font-semibold text-primary-600">{user?.full_name}</span>! Complete the following steps to apply for a loan.
+        </p>
       </div>
 
       {/* Stepper */}

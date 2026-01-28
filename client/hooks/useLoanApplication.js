@@ -10,6 +10,9 @@ export function useLoanApplication() {
   const [error, setError] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
 
+  // Helper to get status from loan (backend uses 'status' field)
+  const getStatus = (loanData) => loanData?.status || loanData?.workflow_state;
+
   // Create loan application
   const createLoan = useCallback(async (data) => {
     setLoading(true);
@@ -17,7 +20,7 @@ export function useLoanApplication() {
     try {
       const newLoan = await loanService.createLoan(data);
       setLoan(newLoan);
-      setCurrentStep(STATE_TO_STEP[newLoan.workflow_state] || 1);
+      setCurrentStep(STATE_TO_STEP[getStatus(newLoan)] || 1);
       return newLoan;
     } catch (err) {
       const errorMessage = err.response?.data?.detail || 'Failed to create loan application';
@@ -35,7 +38,7 @@ export function useLoanApplication() {
     try {
       const fetchedLoan = await loanService.getLoan(id);
       setLoan(fetchedLoan);
-      setCurrentStep(STATE_TO_STEP[fetchedLoan.workflow_state] || 1);
+      setCurrentStep(STATE_TO_STEP[getStatus(fetchedLoan)] || 1);
       return fetchedLoan;
     } catch (err) {
       const errorMessage = err.response?.data?.detail || 'Failed to fetch loan';
@@ -54,7 +57,7 @@ export function useLoanApplication() {
     try {
       const updatedLoan = await loanService.submitKYC(loan.id);
       setLoan(updatedLoan);
-      setCurrentStep(STATE_TO_STEP[updatedLoan.workflow_state] || 2);
+      setCurrentStep(STATE_TO_STEP[getStatus(updatedLoan)] || 2);
       return updatedLoan;
     } catch (err) {
       const errorMessage = err.response?.data?.detail || 'KYC submission failed';
@@ -73,7 +76,7 @@ export function useLoanApplication() {
     try {
       const updatedLoan = await loanService.runCreditCheck(loan.id);
       setLoan(updatedLoan);
-      setCurrentStep(STATE_TO_STEP[updatedLoan.workflow_state] || 3);
+      setCurrentStep(STATE_TO_STEP[getStatus(updatedLoan)] || 3);
       return updatedLoan;
     } catch (err) {
       const errorMessage = err.response?.data?.detail || 'Credit check failed';
@@ -86,12 +89,12 @@ export function useLoanApplication() {
 
   // Check if loan is complete
   const isComplete = loan && (
-    loan.workflow_state === WORKFLOW_STATES.ELIGIBLE ||
-    loan.workflow_state === WORKFLOW_STATES.NOT_ELIGIBLE
+    getStatus(loan) === WORKFLOW_STATES.ELIGIBLE ||
+    getStatus(loan) === WORKFLOW_STATES.NOT_ELIGIBLE
   );
 
   // Check if eligible
-  const isEligible = loan?.workflow_state === WORKFLOW_STATES.ELIGIBLE;
+  const isEligible = getStatus(loan) === WORKFLOW_STATES.ELIGIBLE;
 
   // Reset
   const reset = useCallback(() => {

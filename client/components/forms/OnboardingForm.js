@@ -7,12 +7,15 @@ import Button from '@/components/common/Button';
 export default function OnboardingForm({ onSubmit, loading }) {
   const [formData, setFormData] = useState({
     full_name: '',
-    date_of_birth: '',
-    pan_number: '',
-    phone: '',
+    dob: '',
+    pan: '',
+    mobile: '',
     email: '',
+    address: '',
+    employment_type: 'SALARIED',
     monthly_income: '',
-    requested_amount: '',
+    loan_amount: '',
+    loan_purpose: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -24,25 +27,25 @@ export default function OnboardingForm({ onSubmit, loading }) {
       newErrors.full_name = 'Full name is required';
     }
 
-    if (!formData.date_of_birth) {
-      newErrors.date_of_birth = 'Date of birth is required';
+    if (!formData.dob) {
+      newErrors.dob = 'Date of birth is required';
     } else {
-      const age = calculateAge(formData.date_of_birth);
+      const age = calculateAge(formData.dob);
       if (age < 21) {
-        newErrors.date_of_birth = 'You must be at least 21 years old';
+        newErrors.dob = 'You must be at least 21 years old';
       }
     }
 
-    if (!formData.pan_number.trim()) {
-      newErrors.pan_number = 'PAN number is required';
-    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan_number.toUpperCase())) {
-      newErrors.pan_number = 'Invalid PAN format (e.g., ABCDE1234F)';
+    if (!formData.pan.trim()) {
+      newErrors.pan = 'PAN number is required';
+    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) {
+      newErrors.pan = 'Invalid PAN format (e.g., ABCDE1234F)';
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^[6-9]\d{9}$/.test(formData.phone)) {
-      newErrors.phone = 'Invalid phone number';
+    if (!formData.mobile.trim()) {
+      newErrors.mobile = 'Phone number is required';
+    } else if (!/^[6-9]\d{9}$/.test(formData.mobile)) {
+      newErrors.mobile = 'Invalid phone number';
     }
 
     if (!formData.email.trim()) {
@@ -57,10 +60,12 @@ export default function OnboardingForm({ onSubmit, loading }) {
       newErrors.monthly_income = 'Income must be greater than 0';
     }
 
-    if (!formData.requested_amount) {
-      newErrors.requested_amount = 'Loan amount is required';
-    } else if (parseFloat(formData.requested_amount) <= 0) {
-      newErrors.requested_amount = 'Amount must be greater than 0';
+    if (!formData.loan_amount) {
+      newErrors.loan_amount = 'Loan amount is required';
+    } else if (parseFloat(formData.loan_amount) <= 0) {
+      newErrors.loan_amount = 'Amount must be greater than 0';
+    } else if (parseFloat(formData.loan_amount) > parseFloat(formData.monthly_income) * 20) {
+      newErrors.loan_amount = 'Loan amount cannot exceed 20x your monthly income';
     }
 
     setErrors(newErrors);
@@ -89,19 +94,34 @@ export default function OnboardingForm({ onSubmit, loading }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
+      // Send data in the format expected by the backend API
       onSubmit({
-        ...formData,
-        pan_number: formData.pan_number.toUpperCase(),
+        full_name: formData.full_name,
+        mobile: formData.mobile,
+        pan: formData.pan.toUpperCase(),
+        dob: formData.dob,
+        email: formData.email,
+        address: formData.address || null,
+        employment_type: formData.employment_type,
         monthly_income: parseFloat(formData.monthly_income),
-        requested_amount: parseFloat(formData.requested_amount),
+        loan_amount: parseFloat(formData.loan_amount),
+        loan_purpose: formData.loan_purpose || null,
       });
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Personal Information Card */}
+      <div className="bg-white rounded-2xl shadow-card border border-dark-100 p-6 md:p-8 transition-all duration-300 hover:shadow-card-hover">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center shadow-glow">
+            <svg className="w-5 h-5 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-dark-900">Personal Information</h2>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Input
@@ -116,21 +136,21 @@ export default function OnboardingForm({ onSubmit, loading }) {
 
           <Input
             label="Date of Birth"
-            name="date_of_birth"
+            name="dob"
             type="date"
-            value={formData.date_of_birth}
+            value={formData.dob}
             onChange={handleChange}
-            error={errors.date_of_birth}
+            error={errors.dob}
             max={new Date().toISOString().split('T')[0]}
             required
           />
 
           <Input
             label="PAN Number"
-            name="pan_number"
-            value={formData.pan_number}
+            name="pan"
+            value={formData.pan}
             onChange={handleChange}
-            error={errors.pan_number}
+            error={errors.pan}
             placeholder="ABCDE1234F"
             maxLength={10}
             className="uppercase"
@@ -139,11 +159,11 @@ export default function OnboardingForm({ onSubmit, loading }) {
 
           <Input
             label="Phone Number"
-            name="phone"
+            name="mobile"
             type="tel"
-            value={formData.phone}
+            value={formData.mobile}
             onChange={handleChange}
-            error={errors.phone}
+            error={errors.mobile}
             placeholder="9876543210"
             maxLength={10}
             required
@@ -159,13 +179,45 @@ export default function OnboardingForm({ onSubmit, loading }) {
             placeholder="you@example.com"
             required
           />
+
+          <Input
+            label="Address"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            error={errors.address}
+            placeholder="Enter your address (optional)"
+          />
         </div>
       </div>
 
-      <div className="card">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Loan Details</h2>
+      {/* Employment & Loan Details Card */}
+      <div className="bg-white rounded-2xl shadow-card border border-dark-100 p-6 md:p-8 transition-all duration-300 hover:shadow-card-hover">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center shadow-glow">
+            <svg className="w-5 h-5 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-dark-900">Employment & Loan Details</h2>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Employment Type <span className="text-red-500 ml-1">*</span>
+            </label>
+            <select
+              name="employment_type"
+              value={formData.employment_type}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none transition-all focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            >
+              <option value="SALARIED">Salaried</option>
+              <option value="SELF_EMPLOYED">Self Employed</option>
+            </select>
+          </div>
+
           <Input
             label="Monthly Income (₹)"
             name="monthly_income"
@@ -179,32 +231,48 @@ export default function OnboardingForm({ onSubmit, loading }) {
           />
 
           <Input
-            label="Requested Loan Amount (₹)"
-            name="requested_amount"
+            label="Loan Amount (₹)"
+            name="loan_amount"
             type="number"
-            value={formData.requested_amount}
+            value={formData.loan_amount}
             onChange={handleChange}
-            error={errors.requested_amount}
+            error={errors.loan_amount}
             placeholder="500000"
             min="0"
             required
           />
+
+          <Input
+            label="Loan Purpose"
+            name="loan_purpose"
+            value={formData.loan_purpose}
+            onChange={handleChange}
+            error={errors.loan_purpose}
+            placeholder="e.g., Home Renovation, Education (optional)"
+          />
         </div>
 
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Maximum loan amount is 20x your monthly income.
-            {formData.monthly_income && (
-              <span className="block mt-1">
-                Based on your income, you can apply up to ₹{(parseFloat(formData.monthly_income) * 20).toLocaleString()}
-              </span>
-            )}
-          </p>
+        <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl border border-primary-200">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-dark-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-dark-800">Maximum loan amount is 20x your monthly income.</p>
+              {formData.monthly_income && (
+                <p className="text-sm text-dark-600 mt-1">
+                  Based on your income, you can apply up to <span className="font-bold text-primary-700">₹{(parseFloat(formData.monthly_income) * 20).toLocaleString()}</span>
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" loading={loading} size="lg">
+        <Button type="submit" loading={loading} size="lg" className="px-8">
           Continue to KYC
         </Button>
       </div>

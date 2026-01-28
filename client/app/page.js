@@ -16,7 +16,7 @@ export default function Home() {
               KYC verification and credit assessment.
             </p>
             <Link
-              href="/loan/apply"
+              href="/auth?redirect=/loan/apply"
               className="inline-flex items-center gap-2 bg-primary-500 text-gray-900 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-400 transition-colors"
             >
               Apply Now
@@ -102,7 +102,7 @@ export default function Home() {
 
           <div className="text-center mt-12">
             <Link
-              href="/loan/apply"
+              href="/auth?redirect=/loan/apply"
               className="inline-flex items-center gap-2 bg-primary-500 text-gray-900 font-semibold text-lg px-8 py-3 rounded-lg hover:bg-primary-400 transition-colors"
             >
               Start Application

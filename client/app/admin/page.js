@@ -13,7 +13,8 @@ import {
   Clock,
   RefreshCw,
   LogIn,
-  LogOut
+  LogOut,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -95,16 +96,16 @@ export default function AdminPage() {
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-4 py-16">
-        <div className="card">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-              <LogIn className="h-8 w-8 text-primary-600" />
+        <div className="bg-white rounded-2xl shadow-card border border-dark-100 p-8">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl mb-4 shadow-glow">
+              <LogIn className="h-8 w-8 text-dark-900" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Login</h1>
-            <p className="text-gray-600">Sign in to access the admin dashboard</p>
+            <h1 className="text-2xl font-bold text-dark-900">Admin Login</h1>
+            <p className="text-dark-500 mt-2">Sign in to access the admin dashboard</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <Input
               label="Email"
               type="email"
@@ -124,12 +125,13 @@ export default function AdminPage() {
             />
 
             {loginError && (
-              <div className="bg-red-50 text-red-700 px-4 py-2 rounded-lg text-sm">
+              <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-xl text-sm font-medium border border-rose-200">
                 {loginError}
               </div>
             )}
 
-            <Button type="submit" loading={isLoggingIn} className="w-full">
+            <Button type="submit" loading={isLoggingIn} className="w-full" size="lg">
+              <LogIn className="h-5 w-5 mr-2" />
               Sign In
             </Button>
           </form>
@@ -142,10 +144,12 @@ export default function AdminPage() {
   if (!user.is_admin) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <div className="card">
-          <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-6">You don't have admin privileges.</p>
+        <div className="bg-white rounded-2xl shadow-card border border-dark-100 p-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-rose-100 rounded-full mb-6">
+            <XCircle className="h-10 w-10 text-rose-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-dark-900 mb-2">Access Denied</h1>
+          <p className="text-dark-500 mb-6">You don't have admin privileges.</p>
           <Button onClick={handleLogout} variant="secondary">
             Logout
           </Button>
