@@ -1,13 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/common/Button';
 import StatusBadge from '@/components/StatusBadge';
 import { WORKFLOW_STATES } from '@/utils/constants';
-import { CheckCircle, XCircle, ArrowRight, Home, Trophy, FileText, User, IndianRupee, Award, CreditCard } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Home, Trophy, FileText, User, IndianRupee, Award, CreditCard, Clock, PartyPopper } from 'lucide-react';
 
 export default function EligibilityResult({ loan, onReset }) {
   const router = useRouter();
+  const [showDisbursementModal, setShowDisbursementModal] = useState(false);
+  
   // Backend uses 'status', normalize to handle both
   const status = loan?.status || loan?.workflow_state;
   const isEligible = status === WORKFLOW_STATES.ELIGIBLE;
@@ -136,14 +139,17 @@ export default function EligibilityResult({ loan, onReset }) {
         </div>
 
         {/* Rejection Reasons */}
-        {!isEligible && eligibilityResult?.rejection_reasons?.length > 0 && (
+        {!isEligible && eligibilityResult?.rejection_reasons && (
           <div className="bg-rose-50 rounded-2xl p-6 text-left mb-8 border border-rose-200">
             <h3 className="font-semibold text-rose-800 mb-4 flex items-center gap-2">
               <XCircle className="h-5 w-5" />
               Reasons for Rejection
             </h3>
             <ul className="space-y-2">
-              {eligibilityResult.rejection_reasons.map((reason, index) => (
+              {(typeof eligibilityResult.rejection_reasons === 'string' 
+                ? eligibilityResult.rejection_reasons.split('; ').filter(r => r)
+                : eligibilityResult.rejection_reasons || []
+              ).map((reason, index) => (
                 <li key={index} className="flex items-start gap-3 text-rose-700">
                   <span className="w-6 h-6 bg-rose-200 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5">
                     {index + 1}
@@ -167,7 +173,10 @@ export default function EligibilityResult({ loan, onReset }) {
           </Button>
           
           {isEligible ? (
-            <Button className="gap-2">
+            <Button 
+              className="gap-2"
+              onClick={() => setShowDisbursementModal(true)}
+            >
               Proceed to Disbursement
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -179,6 +188,44 @@ export default function EligibilityResult({ loan, onReset }) {
           )}
         </div>
       </div>
+
+      {/* Disbursement Modal */}
+      {showDisbursementModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mb-6 shadow-glow">
+              <PartyPopper className="h-10 w-10 text-dark-900" />
+            </div>
+            <h3 className="text-2xl font-bold text-dark-900 mb-3">
+              Congratulations! 🎉
+            </h3>
+            <p className="text-dark-600 mb-6">
+              Your loan has been approved! The disbursement module is being processed.
+            </p>
+            <div className="bg-primary-50 rounded-xl p-4 mb-6 border border-primary-200">
+              <div className="flex items-center gap-3 justify-center text-primary-700">
+                <Clock className="h-5 w-5" />
+                <span className="font-medium">Amount will be disbursed within 24-48 hours</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-dark-500">
+                You will receive an SMS and email notification once the amount is credited to your account.
+              </p>
+              <Button 
+                className="w-full gap-2"
+                onClick={() => {
+                  setShowDisbursementModal(false);
+                  router.push('/');
+                }}
+              >
+                <Home className="h-4 w-4" />
+                Go to Home
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

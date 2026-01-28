@@ -11,45 +11,32 @@ def calculate_eligibility(
     Calculate loan eligibility based on income and employment type.
     
     Rules:
-    - SALARIED: max_emi = income × 0.5
-    - SELF_EMPLOYED: max_emi = income × 0.4
-    - Interest rate: 12% (0.12) annual
-    - Default tenure: 36 months
+    - SALARIED: max_emi = income × 0.5 (50% of income)
+    - SELF_EMPLOYED: max_emi = income × 0.4 (40% of income)
+    - Interest rate: 12% (static)
+    - Tenure: 36 months
     
     Args:
         monthly_income: Monthly income of the applicant
         employment_type: Type of employment (SALARIED/SELF_EMPLOYED)
         loan_amount: Requested loan amount (optional)
-        credit_score: Credit score (optional, for rate adjustment)
+        credit_score: Credit score (optional, not used for rate - kept for API compatibility)
         
     Returns:
         Dictionary containing eligibility details
     """
     # Calculate max EMI based on employment type
     if employment_type == EmploymentType.SALARIED.value or employment_type == EmploymentType.SALARIED:
-        emi_multiplier = 0.5
+        emi_multiplier = 0.5  # 50% of income for salaried
     else:
-        emi_multiplier = 0.4
+        emi_multiplier = 0.4  # 40% of income for self-employed
     
     max_emi = monthly_income * emi_multiplier
     
-    # Base interest rate (annual)
-    base_interest_rate = 0.12
+    # Static interest rate (annual) - 12%
+    interest_rate = 0.12
     
-    # Adjust interest rate based on credit score (if provided)
-    if credit_score:
-        if credit_score >= 750:
-            interest_rate = base_interest_rate - 0.02  # 10%
-        elif credit_score >= 700:
-            interest_rate = base_interest_rate - 0.01  # 11%
-        elif credit_score >= 650:
-            interest_rate = base_interest_rate  # 12%
-        else:
-            interest_rate = base_interest_rate + 0.02  # 14%
-    else:
-        interest_rate = base_interest_rate
-    
-    # Default tenure in months
+    # Fixed tenure in months - 36 months
     tenure_months = 36
     
     # Calculate maximum eligible loan amount using EMI formula

@@ -32,7 +32,10 @@ import {
   MapPin,
   User,
   ArrowRight,
-  History
+  History,
+  Edit,
+  RotateCcw,
+  Save
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -60,6 +63,15 @@ export default function AdminPage() {
   
   // Journey modal state
   const [journeyModal, setJourneyModal] = useState({ open: false, loan: null });
+  
+  // Edit modal state
+  const [editModal, setEditModal] = useState({ open: false, loan: null });
+  const [editForm, setEditForm] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  
+  // Retry KYC state
+  const [retryingKyc, setRetryingKyc] = useState(null);
 
   // Check for existing auth on mount
   useEffect(() => {
@@ -166,16 +178,33 @@ export default function AdminPage() {
   // Check if any filters are active
   const hasActiveFilters = statusFilter !== 'ALL' || eligibilityFilter !== 'ALL';
 
-  // View journey for a loan
+  // View journey for a loan using the history API
   const viewJourney = async (loan) => {
     try {
-      // Fetch detailed loan info with KYC/Credit results
-      const detailedLoan = await loanService.getLoan(loan.id);
-      setJourneyModal({ open: true, loan: detailedLoan });
+      // Use the admin history API for complete journey data
+      const history = await loanService.getHistory(loan.id);
+      console.log('History API response:', history);
+      // Transform history response to match journey modal expectations
+      const journeyData = {
+        ...history.application,
+        kyc_result: history.kyc,
+        credit_result: history.credit,
+        eligibility_result: history.eligibility
+      };
+      console.log('Journey data:', journeyData);
+      setJourneyModal({ open: true, loan: journeyData });
     } catch (err) {
-      console.error('Failed to fetch loan details:', err);
-      // Fallback to basic loan data
-      setJourneyModal({ open: true, loan });
+      console.error('Failed to fetch loan history:', err);
+      // Fallback to regular loan fetch
+      try {
+        const detailedLoan = await loanService.getLoan(loan.id);
+        console.log('Fallback loan data:', detailedLoan);
+        setJourneyModal({ open: true, loan: detailedLoan });
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+        // Ultimate fallback to basic loan data
+        setJourneyModal({ open: true, loan });
+      }
     }
   };
 
@@ -188,6 +217,62 @@ export default function AdminPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Open edit modal
+  const openEditModal = (loan) => {
+    setEditForm({
+      full_name: loan.full_name || '',
+      email: loan.email || '',
+      mobile: loan.mobile || '',
+      dob: loan.dob ? loan.dob.split('T')[0] : '',
+      pan: loan.pan || '',
+      address: loan.address || '',
+      employment_type: loan.employment_type || 'SALARIED',
+      monthly_income: loan.monthly_income || '',
+      loan_amount: loan.loan_amount || '',
+      loan_purpose: loan.loan_purpose || ''
+    });
+    setEditError('');
+    setEditModal({ open: true, loan });
+  };
+
+  // Handle edit form submit
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editModal.loan) return;
+    
+    setEditLoading(true);
+    setEditError('');
+    
+    try {
+      await loanService.updateLoan(editModal.loan.id, {
+        ...editForm,
+        monthly_income: parseFloat(editForm.monthly_income),
+        loan_amount: parseFloat(editForm.loan_amount)
+      });
+      
+      setEditModal({ open: false, loan: null });
+      fetchData(); // Refresh the data
+    } catch (err) {
+      setEditError(err.response?.data?.detail || 'Failed to update application');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Handle KYC retry
+  const handleRetryKyc = async (loanId) => {
+    setRetryingKyc(loanId);
+    try {
+      await loanService.retryKYC(loanId);
+      fetchData(); // Refresh the data
+    } catch (err) {
+      console.error('Failed to retry KYC:', err);
+      alert(err.response?.data?.detail || 'Failed to retry KYC');
+    } finally {
+      setRetryingKyc(null);
+    }
   };
 
   // Login Form
@@ -358,46 +443,60 @@ export default function AdminPage() {
 
       {/* Journey Modal */}
       {journeyModal.open && journeyModal.loan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 bg-gradient-to-r from-primary-50 to-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary-100 rounded-lg">
+                <div className="p-2.5 bg-primary-100 rounded-xl shadow-sm">
                   <History className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Application Journey</h3>
-                  <p className="text-sm text-gray-500">#{journeyModal.loan.id} - {journeyModal.loan.full_name}</p>
+                  <h3 className="text-lg font-bold text-gray-900">Application Journey</h3>
+                  <p className="text-sm text-gray-500">#{journeyModal.loan.id} • {journeyModal.loan.full_name}</p>
                 </div>
               </div>
               <button
                 onClick={() => setJourneyModal({ open: false, loan: null })}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
-            <div className="p-6">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
               {/* Timeline */}
               <div className="relative">
                 {/* Application Created */}
                 <div className="flex gap-4 pb-8">
                   <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div className="w-11 h-11 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white">
                       <FileText className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
+                    <div className="w-0.5 h-full bg-gradient-to-b from-blue-200 to-gray-200 mt-2"></div>
                   </div>
                   <div className="flex-1 pb-2">
                     <h4 className="font-semibold text-gray-900">Application Submitted</h4>
                     <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.created_at)}</p>
-                    <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div><span className="text-gray-500">Amount:</span> <span className="font-medium">₹{(journeyModal.loan.loan_amount || 0).toLocaleString('en-IN')}</span></div>
-                        <div><span className="text-gray-500">Purpose:</span> <span className="font-medium">{journeyModal.loan.loan_purpose || 'N/A'}</span></div>
-                        <div><span className="text-gray-500">Employment:</span> <span className="font-medium">{journeyModal.loan.employment_type}</span></div>
-                        <div><span className="text-gray-500">Income:</span> <span className="font-medium">₹{(journeyModal.loan.monthly_income || 0).toLocaleString('en-IN')}/mo</span></div>
+                    <div className="mt-3 bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 text-sm border border-gray-100 shadow-sm">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Amount</span>
+                          <span className="font-semibold text-gray-900">₹{(journeyModal.loan.loan_amount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Purpose</span>
+                          <span className="font-semibold text-gray-900">{journeyModal.loan.loan_purpose || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Employment</span>
+                          <span className="font-semibold text-gray-900">{journeyModal.loan.employment_type}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Income</span>
+                          <span className="font-semibold text-gray-900">₹{(journeyModal.loan.monthly_income || 0).toLocaleString('en-IN')}/mo</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -406,29 +505,35 @@ export default function AdminPage() {
                 {/* KYC Verification */}
                 <div className="flex gap-4 pb-8">
                   <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${
                       journeyModal.loan.kyc_result 
-                        ? journeyModal.loan.kyc_result.status === 'PASS' 
-                          ? 'bg-green-100' 
-                          : 'bg-red-100'
-                        : 'bg-gray-100'
+                        ? journeyModal.loan.kyc_result.status === 'PASSED' 
+                          ? 'bg-gradient-to-br from-green-100 to-green-200' 
+                          : 'bg-gradient-to-br from-red-100 to-red-200'
+                        : 'bg-gradient-to-br from-gray-100 to-gray-200'
                     }`}>
                       <User className={`w-5 h-5 ${
                         journeyModal.loan.kyc_result 
-                          ? journeyModal.loan.kyc_result.status === 'PASS' 
+                          ? journeyModal.loan.kyc_result.status === 'PASSED' 
                             ? 'text-green-600' 
                             : 'text-red-600'
                           : 'text-gray-400'
                       }`} />
                     </div>
-                    <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
+                    <div className={`w-0.5 h-full mt-2 ${
+                      journeyModal.loan.kyc_result 
+                        ? journeyModal.loan.kyc_result.status === 'PASSED' 
+                          ? 'bg-gradient-to-b from-green-200 to-gray-200' 
+                          : 'bg-gradient-to-b from-red-200 to-gray-200'
+                        : 'bg-gray-200'
+                    }`}></div>
                   </div>
                   <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-gray-900">KYC Verification</h4>
                       {journeyModal.loan.kyc_result && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          journeyModal.loan.kyc_result.status === 'PASS' 
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                          journeyModal.loan.kyc_result.status === 'PASSED' 
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-red-100 text-red-700'
                         }`}>
@@ -439,16 +544,25 @@ export default function AdminPage() {
                     {journeyModal.loan.kyc_result ? (
                       <>
                         <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.kyc_result.created_at)}</p>
-                        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div><span className="text-gray-500">Name Match:</span> <span className="font-medium">{journeyModal.loan.kyc_result.name_match_score}/100</span></div>
-                            <div><span className="text-gray-500">PAN Verified:</span> <span className="font-medium">{journeyModal.loan.kyc_result.pan_verified}</span></div>
-                            <div><span className="text-gray-500">Address Verified:</span> <span className="font-medium">{journeyModal.loan.kyc_result.address_verified}</span></div>
+                        <div className="mt-3 bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 text-sm border border-gray-100 shadow-sm">
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="flex flex-col items-center p-2 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Name Match</span>
+                              <span className="font-bold text-lg text-gray-900">{journeyModal.loan.kyc_result.name_match_score}<span className="text-xs text-gray-400">/100</span></span>
+                            </div>
+                            <div className="flex flex-col items-center p-2 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">PAN Verified</span>
+                              <span className={`font-bold text-lg ${journeyModal.loan.kyc_result.pan_verified === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{journeyModal.loan.kyc_result.pan_verified}</span>
+                            </div>
+                            <div className="flex flex-col items-center p-2 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Address</span>
+                              <span className={`font-bold text-lg ${journeyModal.loan.kyc_result.address_verified === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{journeyModal.loan.kyc_result.address_verified}</span>
+                            </div>
                           </div>
                         </div>
                       </>
                     ) : (
-                      <p className="text-sm text-gray-400 mt-1 italic">Pending verification</p>
+                      <p className="text-sm text-gray-400 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">⏳ Pending verification</p>
                     )}
                   </div>
                 </div>
@@ -456,12 +570,12 @@ export default function AdminPage() {
                 {/* Credit Check */}
                 <div className="flex gap-4 pb-8">
                   <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${
                       journeyModal.loan.credit_result 
                         ? journeyModal.loan.credit_result.is_approved 
-                          ? 'bg-green-100' 
-                          : 'bg-red-100'
-                        : 'bg-gray-100'
+                          ? 'bg-gradient-to-br from-green-100 to-green-200' 
+                          : 'bg-gradient-to-br from-red-100 to-red-200'
+                        : 'bg-gradient-to-br from-gray-100 to-gray-200'
                     }`}>
                       <CreditCard className={`w-5 h-5 ${
                         journeyModal.loan.credit_result 
@@ -471,13 +585,19 @@ export default function AdminPage() {
                           : 'text-gray-400'
                       }`} />
                     </div>
-                    <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
+                    <div className={`w-0.5 h-full mt-2 ${
+                      journeyModal.loan.credit_result 
+                        ? journeyModal.loan.credit_result.is_approved 
+                          ? 'bg-gradient-to-b from-green-200 to-gray-200' 
+                          : 'bg-gradient-to-b from-red-200 to-gray-200'
+                        : 'bg-gray-200'
+                    }`}></div>
                   </div>
                   <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-gray-900">Credit Check</h4>
                       {journeyModal.loan.credit_result && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
                           journeyModal.loan.credit_result.is_approved 
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-red-100 text-red-700'
@@ -489,18 +609,27 @@ export default function AdminPage() {
                     {journeyModal.loan.credit_result ? (
                       <>
                         <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.credit_result.created_at)}</p>
-                        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div><span className="text-gray-500">Credit Score:</span> <span className="font-medium">{journeyModal.loan.credit_result.credit_score}</span></div>
-                            <div><span className="text-gray-500">Active Loans:</span> <span className="font-medium">{journeyModal.loan.credit_result.active_loans}</span></div>
-                            {journeyModal.loan.credit_result.rejection_reason && (
-                              <div className="col-span-2"><span className="text-gray-500">Reason:</span> <span className="font-medium text-red-600">{journeyModal.loan.credit_result.rejection_reason}</span></div>
-                            )}
+                        <div className="mt-3 bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 text-sm border border-gray-100 shadow-sm">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col items-center p-3 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Credit Score</span>
+                              <span className={`font-bold text-2xl ${journeyModal.loan.credit_result.credit_score >= 650 ? 'text-green-600' : 'text-red-600'}`}>{journeyModal.loan.credit_result.credit_score}</span>
+                            </div>
+                            <div className="flex flex-col items-center p-3 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Active Loans</span>
+                              <span className="font-bold text-2xl text-gray-900">{journeyModal.loan.credit_result.active_loans}</span>
+                            </div>
                           </div>
+                          {journeyModal.loan.credit_result.rejection_reason && (
+                            <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                              <span className="text-xs text-red-500 uppercase tracking-wide">Rejection Reason</span>
+                              <p className="font-medium text-red-700 mt-1">{journeyModal.loan.credit_result.rejection_reason}</p>
+                            </div>
+                          )}
                         </div>
                       </>
                     ) : (
-                      <p className="text-sm text-gray-400 mt-1 italic">Pending credit check</p>
+                      <p className="text-sm text-gray-400 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">⏳ Pending credit check</p>
                     )}
                   </div>
                 </div>
@@ -508,17 +637,17 @@ export default function AdminPage() {
                 {/* Final Result */}
                 <div className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${
                       journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE 
-                        ? 'bg-green-100' 
+                        ? 'bg-gradient-to-br from-green-400 to-green-500' 
                         : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE
-                          ? 'bg-red-100'
-                          : 'bg-gray-100'
+                          ? 'bg-gradient-to-br from-red-400 to-red-500'
+                          : 'bg-gradient-to-br from-gray-100 to-gray-200'
                     }`}>
                       {journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE ? (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <CheckCircle className="w-5 h-5 text-white" />
                       ) : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE ? (
-                        <XCircle className="w-5 h-5 text-red-600" />
+                        <XCircle className="w-5 h-5 text-white" />
                       ) : (
                         <Clock className="w-5 h-5 text-gray-400" />
                       )}
@@ -532,20 +661,37 @@ export default function AdminPage() {
                     {journeyModal.loan.eligibility_result ? (
                       <>
                         <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.eligibility_result.created_at)}</p>
-                        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
+                        <div className="mt-3 text-sm">
                           {journeyModal.loan.eligibility_result.is_eligible ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div><span className="text-gray-500">Eligible Amount:</span> <span className="font-medium text-green-600">₹{(journeyModal.loan.eligibility_result.eligible_amount || 0).toLocaleString('en-IN')}</span></div>
-                              <div><span className="text-gray-500">Interest Rate:</span> <span className="font-medium">{journeyModal.loan.eligibility_result.interest_rate}%</span></div>
-                              <div><span className="text-gray-500">Tenure:</span> <span className="font-medium">{journeyModal.loan.eligibility_result.tenure_months} months</span></div>
-                              <div><span className="text-gray-500">Max EMI:</span> <span className="font-medium">₹{(journeyModal.loan.eligibility_result.max_emi || 0).toLocaleString('en-IN')}</span></div>
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 shadow-sm">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col p-3 bg-white/80 rounded-lg">
+                                  <span className="text-xs text-green-600 uppercase tracking-wide font-medium">Eligible Amount</span>
+                                  <span className="font-bold text-xl text-green-700">₹{(journeyModal.loan.eligibility_result.eligible_amount || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="flex flex-col p-3 bg-white/80 rounded-lg">
+                                  <span className="text-xs text-green-600 uppercase tracking-wide font-medium">Interest Rate</span>
+                                  <span className="font-bold text-xl text-green-700">{((journeyModal.loan.eligibility_result.interest_rate || 0) * 100).toFixed(1)}%</span>
+                                </div>
+                                <div className="flex flex-col p-3 bg-white/80 rounded-lg">
+                                  <span className="text-xs text-green-600 uppercase tracking-wide font-medium">Tenure</span>
+                                  <span className="font-bold text-xl text-green-700">{journeyModal.loan.eligibility_result.tenure_months} <span className="text-sm font-normal">months</span></span>
+                                </div>
+                                <div className="flex flex-col p-3 bg-white/80 rounded-lg">
+                                  <span className="text-xs text-green-600 uppercase tracking-wide font-medium">Max EMI</span>
+                                  <span className="font-bold text-xl text-green-700">₹{(journeyModal.loan.eligibility_result.max_emi || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                              </div>
                             </div>
                           ) : (
-                            <div>
-                              <span className="text-gray-500">Rejection Reasons:</span>
-                              <ul className="mt-1 list-disc list-inside text-red-600">
-                                {(journeyModal.loan.eligibility_result.rejection_reasons || []).map((reason, idx) => (
-                                  <li key={idx}>{reason}</li>
+                            <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-4 border border-red-200 shadow-sm">
+                              <span className="text-xs text-red-600 uppercase tracking-wide font-medium">Rejection Reasons</span>
+                              <ul className="mt-2 space-y-1">
+                                {(journeyModal.loan.eligibility_result.rejection_reasons || '').split('; ').filter(r => r).map((reason, idx) => (
+                                  <li key={idx} className="flex items-start gap-2 text-red-700">
+                                    <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>{reason}</span>
+                                  </li>
                                 ))}
                               </ul>
                             </div>
@@ -553,16 +699,191 @@ export default function AdminPage() {
                         </div>
                       </>
                     ) : (
-                      <p className="text-sm text-gray-400 mt-1 italic">Awaiting final decision</p>
+                      <p className="text-sm text-gray-400 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">⏳ Awaiting final decision</p>
                     )}
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="border-t border-gray-200 px-6 py-4 flex justify-end">
+            {/* Fixed Footer */}
+            <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end rounded-b-2xl">
               <Button variant="secondary" onClick={() => setJourneyModal({ open: false, loan: null })}>
                 Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal - Only for DRAFT applications */}
+      {editModal.open && editModal.loan && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 bg-gradient-to-r from-amber-50 to-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-100 rounded-xl shadow-sm">
+                  <Edit className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Edit Application</h3>
+                  <p className="text-sm text-gray-500">#{editModal.loan.id} • {editModal.loan.full_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditModal({ open: false, loan: null })}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Scrollable Form Content */}
+            <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {editError && (
+                <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-xl text-sm font-medium border border-rose-200">
+                  {editError}
+                </div>
+              )}
+
+              {/* Personal Information */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Personal Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+                    <input
+                      type="tel"
+                      value={editForm.mobile}
+                      onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={editForm.dob}
+                      onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
+                    <input
+                      type="text"
+                      value={editForm.pan}
+                      onChange={(e) => setEditForm({ ...editForm, pan: e.target.value.toUpperCase() })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono transition-all"
+                      pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
+                      placeholder="ABCDE1234F"
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <textarea
+                      value={editForm.address}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Employment & Income */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Employment & Income</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
+                    <select
+                      value={editForm.employment_type}
+                      onChange={(e) => setEditForm({ ...editForm, employment_type: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                    >
+                      <option value="SALARIED">Salaried</option>
+                      <option value="SELF_EMPLOYED">Self Employed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Income (₹)</label>
+                    <input
+                      type="number"
+                      value={editForm.monthly_income}
+                      onChange={(e) => setEditForm({ ...editForm, monthly_income: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      min="0"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan Details */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Loan Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Loan Amount (₹)</label>
+                    <input
+                      type="number"
+                      value={editForm.loan_amount}
+                      onChange={(e) => setEditForm({ ...editForm, loan_amount: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Loan Purpose</label>
+                    <input
+                      type="text"
+                      value={editForm.loan_purpose}
+                      onChange={(e) => setEditForm({ ...editForm, loan_purpose: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      placeholder="e.g., Home Renovation, Medical, etc."
+                    />
+                  </div>
+                </div>
+              </div>
+            </form>
+            
+            {/* Fixed Footer */}
+            <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={() => setEditModal({ open: false, loan: null })}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleEditSubmit} loading={editLoading}>
+                <Save className="w-4 h-4 mr-2" />
+                Save Changes
               </Button>
             </div>
           </div>
@@ -776,6 +1097,27 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-1">
+                            {/* Edit button - only for DRAFT status */}
+                            {loan.status === WORKFLOW_STATES.DRAFT && (
+                              <button
+                                onClick={() => openEditModal(loan)}
+                                className="p-2 hover:bg-amber-50 rounded-lg transition-colors group"
+                                title="Edit Application"
+                              >
+                                <Edit className="w-4 h-4 text-gray-400 group-hover:text-amber-600" />
+                              </button>
+                            )}
+                            {/* Retry KYC button - only for NOT_ELIGIBLE with failed KYC */}
+                            {loan.status === WORKFLOW_STATES.NOT_ELIGIBLE && (
+                              <button
+                                onClick={() => handleRetryKyc(loan.id)}
+                                disabled={retryingKyc === loan.id}
+                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors group disabled:opacity-50"
+                                title="Retry KYC"
+                              >
+                                <RotateCcw className={`w-4 h-4 text-gray-400 group-hover:text-blue-600 ${retryingKyc === loan.id ? 'animate-spin' : ''}`} />
+                              </button>
+                            )}
                             <button
                               onClick={() => viewJourney(loan)}
                               className="p-2 hover:bg-primary-50 rounded-lg transition-colors group"

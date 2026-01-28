@@ -93,6 +93,45 @@ export function useLoanApplication() {
     }
   }, [loan]);
 
+  // Retry KYC (for failed applications)
+  const retryKYC = useCallback(async () => {
+    if (!loan) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const kycResult = await loanService.retryKYC(loan.id);
+      // Refetch the loan to get updated data
+      const updatedLoan = await loanService.getLoan(loan.id);
+      setLoan(updatedLoan);
+      setCurrentStep(STATE_TO_STEP[getStatus(updatedLoan)] || 2);
+      return { ...updatedLoan, kycResult };
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || 'KYC retry failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [loan]);
+
+  // Update loan application (DRAFT only)
+  const updateLoan = useCallback(async (data) => {
+    if (!loan) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedLoan = await loanService.updateLoan(loan.id, data);
+      setLoan(updatedLoan);
+      return updatedLoan;
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || 'Failed to update loan';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [loan]);
+
   // Check if loan is complete
   const isComplete = loan && (
     getStatus(loan) === WORKFLOW_STATES.ELIGIBLE ||
@@ -117,7 +156,9 @@ export function useLoanApplication() {
     setCurrentStep,
     createLoan,
     fetchLoan,
+    updateLoan,
     submitKYC,
+    retryKYC,
     runCreditCheck,
     isComplete,
     isEligible,

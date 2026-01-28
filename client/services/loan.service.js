@@ -14,6 +14,12 @@ export const loanService = {
     return response.data;
   },
 
+  // Update loan application (DRAFT status only)
+  async updateLoan(id, data) {
+    const response = await api.put(API_ENDPOINTS.UPDATE_LOAN(id), data);
+    return response.data;
+  },
+
   // Get user's loans
   async getMyLoans() {
     const response = await api.get(API_ENDPOINTS.MY_LOANS);
@@ -26,9 +32,33 @@ export const loanService = {
     return response.data;
   },
 
+  // Get KYC result
+  async getKYC(loanId) {
+    const response = await api.get(API_ENDPOINTS.GET_KYC(loanId));
+    return response.data;
+  },
+
+  // Retry KYC (for failed applications)
+  async retryKYC(loanId) {
+    const response = await api.post(API_ENDPOINTS.RETRY_KYC(loanId));
+    return response.data;
+  },
+
   // Run credit check
   async runCreditCheck(loanId) {
     const response = await api.post(API_ENDPOINTS.RUN_CREDIT_CHECK(loanId));
+    return response.data;
+  },
+
+  // Get credit result
+  async getCredit(loanId) {
+    const response = await api.get(API_ENDPOINTS.GET_CREDIT(loanId));
+    return response.data;
+  },
+
+  // Get eligibility result
+  async getEligibility(loanId) {
+    const response = await api.get(API_ENDPOINTS.GET_ELIGIBILITY(loanId));
     return response.data;
   },
 
@@ -41,6 +71,12 @@ export const loanService = {
   // Admin: Get stats
   async getStats() {
     const response = await api.get(API_ENDPOINTS.LOAN_STATS);
+    return response.data;
+  },
+
+  // Admin: Get application history/journey
+  async getHistory(id) {
+    const response = await api.get(API_ENDPOINTS.LOAN_HISTORY(id));
     return response.data;
   },
 };
