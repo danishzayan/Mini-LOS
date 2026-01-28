@@ -38,11 +38,14 @@ class CreditBureauService(ABC):
 class MockCibilService(CreditBureauService):
     """
     Mock CIBIL Service implementation.
-    Simulates credit bureau check with random scores.
+    Simulates credit bureau check with deterministic scores based on PAN.
     
     Rules:
     - Credit score < 650 → REJECT
     - Active loans > 5 → REJECT
+    
+    Uses PAN as seed for consistent results (same PAN = same score).
+    Biased towards success (80% chance of passing).
     """
     
     def __init__(
@@ -59,6 +62,40 @@ class MockCibilService(CreditBureauService):
         self.required_min_score = BusinessRules.MIN_CREDIT_SCORE
         self.max_allowed_loans = BusinessRules.MAX_ACTIVE_LOANS
     
+    def _get_credit_data_from_pan(self, pan: str) -> tuple:
+        """
+        Generate deterministic credit data based on PAN.
+        Uses PAN as seed so same PAN always gets same results.
+        Biased towards passing values (80% chance).
+        
+        Returns:
+            tuple: (credit_score, active_loans)
+        """
+        if not pan:
+            return (
+                random.randint(self.min_credit_score, self.max_credit_score),
+                random.randint(self.min_active_loans, self.max_active_loans)
+            )
+        
+        # Use PAN hash as seed for reproducibility
+        seed = sum(ord(c) for c in pan.upper())
+        rng = random.Random(seed)
+        
+        # 80% chance of getting passing values
+        if rng.random() < 0.8:
+            credit_score = rng.randint(650, 800)  # Passing score (>=650)
+            active_loans = rng.randint(0, 5)       # Passing loans (<=5)
+        else:
+            # 20% chance of failure - randomly choose which rule to fail
+            if rng.random() < 0.5:
+                credit_score = rng.randint(600, 649)  # Failing score
+                active_loans = rng.randint(0, 5)       # OK loans
+            else:
+                credit_score = rng.randint(650, 800)  # OK score
+                active_loans = rng.randint(6, 7)       # Failing loans
+        
+        return (credit_score, active_loans)
+    
     def check_credit(self, pan: str) -> dict:
         """
         Perform mock credit check.
@@ -74,8 +111,7 @@ class MockCibilService(CreditBureauService):
             - payment_history_score: Random score
             - enquiry_count: Number of credit enquiries
         """
-        credit_score = random.randint(self.min_credit_score, self.max_credit_score)
-        active_loans = random.randint(self.min_active_loans, self.max_active_loans)
+        credit_score, active_loans = self._get_credit_data_from_pan(pan)
         
         result = {
             "credit_score": credit_score,

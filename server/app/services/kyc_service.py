@@ -38,17 +38,40 @@ class KYCService(ABC):
 class MockKYCService(KYCService):
     """
     Mock KYC Service implementation.
-    Simulates KYC verification with random scores.
+    Simulates KYC verification with deterministic scores based on PAN.
     
     Rules:
     - nameMatchScore < 80 → KYC_FAILED
     - nameMatchScore >= 80 → KYC_PASSED
+    
+    Uses PAN as seed for consistent results (same PAN = same score).
+    Biased towards success (80% chance of passing score).
     """
     
     def __init__(self, min_score: int = 60, max_score: int = 100):
         self.min_score = min_score
         self.max_score = max_score
         self.min_passing_score = BusinessRules.MIN_KYC_SCORE
+    
+    def _get_score_from_pan(self, pan: str) -> int:
+        """
+        Generate a deterministic score based on PAN.
+        Uses PAN as seed so same PAN always gets same score.
+        Biased towards passing scores (80-100) in 80% of cases.
+        """
+        if not pan:
+            return random.randint(self.min_score, self.max_score)
+        
+        # Use PAN hash as seed for reproducibility
+        seed = sum(ord(c) for c in pan.upper())
+        rng = random.Random(seed)
+        
+        # 80% chance of getting a passing score (80-100)
+        # 20% chance of getting a failing score (60-79)
+        if rng.random() < 0.8:
+            return rng.randint(80, 100)  # Passing score
+        else:
+            return rng.randint(60, 79)   # Failing score
     
     def perform_kyc(self, name: str, pan: str = None) -> dict:
         """
@@ -65,7 +88,7 @@ class MockKYCService(KYCService):
             - panVerified: "YES" if PAN is provided
             - addressVerified: Random YES/NO
         """
-        score = random.randint(self.min_score, self.max_score)
+        score = self._get_score_from_pan(pan)
         status = KYCStatus.FAILED if score < self.min_passing_score else KYCStatus.PASSED
         
         result = {
