@@ -8,8 +8,6 @@ A FastAPI-based backend for a simplified Loan Origination System with workflow m
 ```bash
 cd server
 python -m venv venv
-
-# Windows
 venv\Scripts\activate
 
 ```

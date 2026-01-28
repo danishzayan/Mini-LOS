@@ -102,7 +102,11 @@ export default function AuthPage() {
     
     try {
       await authService.login(loginForm.email, loginForm.password);
-      router.push(redirectTo);
+      // Only redirect if token is set (login success)
+      const token = localStorage.getItem('token');
+      if (token) {
+        router.push(redirectTo);
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
     } finally {

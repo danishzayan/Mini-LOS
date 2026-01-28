@@ -31,7 +31,11 @@ api.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/';
+        // Only redirect if not already on /auth
+        if (!window.location.pathname.startsWith('/auth')) {
+          window.location.href = '/';
+        }
+        // Otherwise, stay on /auth and show error
       }
     }
     return Promise.reject(error);

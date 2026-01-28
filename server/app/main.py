@@ -9,20 +9,6 @@ from app.utils.exceptions import LOSException
 from app.api.v1 import auth, loan, kyc, credit, admin
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Application lifespan manager.
-    Creates database tables on startup.
-    """
-    # Startup
-    create_tables()
-    print(f" {settings.APP_NAME} v{settings.APP_VERSION} started successfully!")
-    print(f" Database: {settings.DATABASE_URL}")
-    yield
-    # Shutdown
-    print("👋 Application shutting down...")
-
 
 # Create FastAPI application
 app = FastAPI(
@@ -39,8 +25,7 @@ app = FastAPI(
     """,
     version=settings.APP_VERSION,
     docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
+    redoc_url="/redoc"
 )
 
 # Configure CORS
