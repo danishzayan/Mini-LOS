@@ -45,6 +45,13 @@ export const loanService = {
   },
 };
 
+// Helper to dispatch auth change event
+const dispatchAuthChange = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('authChange'));
+  }
+};
+
 export const authService = {
   // Login
   async login(email, password) {
@@ -60,6 +67,7 @@ export const authService = {
     
     if (response.data.access_token) {
       localStorage.setItem('token', response.data.access_token);
+      dispatchAuthChange();
     }
     
     return response.data;
@@ -81,5 +89,6 @@ export const authService = {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    dispatchAuthChange();
   },
 };

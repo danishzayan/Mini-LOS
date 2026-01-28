@@ -2,30 +2,59 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { authService } from '@/services/loan.service';
-import { LogOut, ChevronDown } from 'lucide-react';
+import { LogOut, ChevronDown, Shield, User } from 'lucide-react';
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    // Check if user is logged in
+  // Function to check and fetch user
+  const checkUser = async () => {
     const token = localStorage.getItem('token');
     if (token) {
-      authService.getMe()
-        .then((userData) => {
-          setUser(userData);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          setUser(null);
-        });
+      try {
+        const userData = await authService.getMe();
+        setUser(userData);
+      } catch {
+        localStorage.removeItem('token');
+        setUser(null);
+      }
+    } else {
+      setUser(null);
     }
+  };
+
+  useEffect(() => {
+    checkUser();
   }, []);
+
+  // Listen for storage changes AND custom auth events
+  useEffect(() => {
+    const handleStorageChange = () => {
+      checkUser();
+    };
+    
+    // Listen for custom auth event (fired when login/logout happens)
+    const handleAuthChange = () => {
+      checkUser();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('authChange', handleAuthChange);
+    
+    // Also check on pathname change (navigation)
+    checkUser();
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleAuthChange);
+    };
+  }, [pathname]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -43,16 +72,8 @@ export default function Header() {
     setUser(null);
     setIsDropdownOpen(false);
     router.push('/');
-  };
-
-  // Get initials for avatar
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
+    // Force refresh to update all components
+    router.refresh();
   };
 
   const avatarUrl = user 
@@ -74,17 +95,30 @@ export default function Header() {
           {/* Navigation */}
           <nav className="flex items-center gap-6">
             <Link 
-              href="/auth?redirect=/loan/apply" 
-              className="text-dark-600 hover:text-primary-600 font-medium transition-colors duration-200"
+              href={user ? "/loan/apply" : "/auth?redirect=/loan/apply"}
+              className={`font-medium transition-colors duration-200 ${
+                pathname === '/loan/apply' 
+                  ? 'text-primary-600' 
+                  : 'text-dark-600 hover:text-primary-600'
+              }`}
             >
               Apply for Loan
             </Link>
-            <Link 
-              href="/admin" 
-              className="text-dark-600 hover:text-primary-600 font-medium transition-colors duration-200"
-            >
-              Admin
-            </Link>
+            
+            {/* Hide Admin link if user is admin (they can access via dropdown) */}
+            {(!user || !user.is_admin) && (
+              <Link 
+                href="/admin" 
+                className={`font-medium transition-colors duration-200 flex items-center gap-1.5 ${
+                  pathname === '/admin' 
+                    ? 'text-primary-600' 
+                    : 'text-dark-600 hover:text-primary-600'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                Admin
+              </Link>
+            )}
 
             {/* User Avatar & Dropdown */}
             {user ? (
@@ -93,21 +127,53 @@ export default function Header() {
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-2 p-1 rounded-full hover:bg-dark-100 transition-colors duration-200"
                 >
-                  <img
-                    src={avatarUrl}
-                    alt={user.full_name || 'User'}
-                    className="w-9 h-9 rounded-full border-2 border-primary-400 shadow-sm"
-                  />
+                  <div className="relative">
+                    <img
+                      src={avatarUrl}
+                      alt={user.full_name || 'User'}
+                      className={`w-9 h-9 rounded-full border-2 shadow-sm ${
+                        user.is_admin ? 'border-violet-500' : 'border-primary-400'
+                      }`}
+                    />
+                    {user.is_admin && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center border-2 border-white">
+                        <Shield className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    )}
+                  </div>
                   <ChevronDown className={`w-4 h-4 text-dark-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Dropdown Menu */}
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-card border border-dark-100 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-card border border-dark-100 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* User Info */}
                     <div className="px-4 py-3 border-b border-dark-100">
-                      <p className="font-semibold text-dark-900 truncate">{user.full_name}</p>
-                      <p className="text-sm text-dark-500 truncate">{user.email}</p>
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={avatarUrl}
+                          alt={user.full_name || 'User'}
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-dark-900 truncate">{user.full_name}</p>
+                          <p className="text-sm text-dark-500 truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      {/* Role Badge */}
+                      <div className="mt-3">
+                        {user.is_admin ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">
+                            <Shield className="w-3 h-3" />
+                            Administrator
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-dark-100 text-dark-600 text-xs font-semibold rounded-full">
+                            <User className="w-3 h-3" />
+                            Customer
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     {/* Logout Button */}

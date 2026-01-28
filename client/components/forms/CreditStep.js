@@ -54,7 +54,7 @@ export default function CreditStep({ loan, onSubmit, loading }) {
               </div>
               <div>
                 <span className="font-semibold text-emerald-800">KYC Verified Successfully</span>
-                <p className="text-sm text-emerald-600">Score: {kycResult.kyc_score || kycResult.score}/100</p>
+                <p className="text-sm text-emerald-600">Score: {kycResult.name_match_score || kycResult.kyc_score || kycResult.score || 0}/100</p>
               </div>
             </div>
           </div>

@@ -114,7 +114,7 @@ export default function EligibilityResult({ loan, onReset }) {
                   </div>
                   <div>
                     <p className="text-xs text-dark-500 uppercase tracking-wide">KYC Score</p>
-                    <p className="font-semibold text-emerald-600">{kycResult.kyc_score || kycResult.score}/100</p>
+                    <p className="font-semibold text-emerald-600">{kycResult.name_match_score || kycResult.kyc_score || kycResult.score || 0}/100</p>
                   </div>
                 </div>
               </div>

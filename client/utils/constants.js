@@ -86,13 +86,13 @@ export const API_ENDPOINTS = {
   GET_LOAN: (id) => `/api/v1/loan/${id}`,
   MY_LOANS: '/api/v1/loan/my-loans',
   
-  // KYC
-  SUBMIT_KYC: (id) => `/api/v1/kyc/${id}/submit`,
+  // KYC - endpoint is under /loan
+  SUBMIT_KYC: (id) => `/api/v1/loan/${id}/kyc`,
   
-  // Credit
-  RUN_CREDIT_CHECK: (id) => `/api/v1/credit/${id}/check`,
+  // Credit - endpoint is under /loan
+  RUN_CREDIT_CHECK: (id) => `/api/v1/loan/${id}/credit-check`,
   
   // Admin
   ALL_LOANS: '/api/v1/admin/loans',
-  LOAN_STATS: '/api/v1/admin/stats',
+  LOAN_STATS: '/api/v1/admin/loans/stats',
 };

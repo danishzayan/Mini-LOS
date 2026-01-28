@@ -55,12 +55,15 @@ export function useLoanApplication() {
     setLoading(true);
     setError(null);
     try {
-      const updatedLoan = await loanService.submitKYC(loan.id);
+      // KYC endpoint returns KYCPerformResponse, not the full loan
+      const kycResult = await loanService.submitKYC(loan.id);
+      // Refetch the loan to get updated data
+      const updatedLoan = await loanService.getLoan(loan.id);
       setLoan(updatedLoan);
       setCurrentStep(STATE_TO_STEP[getStatus(updatedLoan)] || 2);
-      return updatedLoan;
+      return { ...updatedLoan, kycResult };
     } catch (err) {
-      const errorMessage = err.response?.data?.detail || 'KYC submission failed';
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || 'KYC submission failed';
       setError(errorMessage);
       throw err;
     } finally {
@@ -74,12 +77,15 @@ export function useLoanApplication() {
     setLoading(true);
     setError(null);
     try {
-      const updatedLoan = await loanService.runCreditCheck(loan.id);
+      // Credit check endpoint returns CreditCheckResponse, not the full loan
+      const creditResult = await loanService.runCreditCheck(loan.id);
+      // Refetch the loan to get updated data
+      const updatedLoan = await loanService.getLoan(loan.id);
       setLoan(updatedLoan);
       setCurrentStep(STATE_TO_STEP[getStatus(updatedLoan)] || 3);
-      return updatedLoan;
+      return { ...updatedLoan, creditResult };
     } catch (err) {
-      const errorMessage = err.response?.data?.detail || 'Credit check failed';
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || 'Credit check failed';
       setError(errorMessage);
       throw err;
     } finally {

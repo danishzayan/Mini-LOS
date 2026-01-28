@@ -63,35 +63,35 @@ export default function KYCStep({ loan, onSubmit, loading }) {
 
         {/* KYC Status */}
         {isKYCCompleted && kycDetails && (
-          <div className={`rounded-xl p-5 mb-6 border ${kycDetails.is_verified || kycDetails.kyc_verified ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+          <div className={`rounded-xl p-5 mb-6 border ${kycDetails.status === 'PASSED' || kycDetails.is_verified || kycDetails.kyc_verified ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
             <div className="flex items-start gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${kycDetails.is_verified || kycDetails.kyc_verified ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-                {kycDetails.is_verified || kycDetails.kyc_verified ? (
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${kycDetails.status === 'PASSED' || kycDetails.is_verified || kycDetails.kyc_verified ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                {kycDetails.status === 'PASSED' || kycDetails.is_verified || kycDetails.kyc_verified ? (
                   <CheckCircle className="h-6 w-6 text-white" />
                 ) : (
                   <AlertCircle className="h-6 w-6 text-white" />
                 )}
               </div>
               <div className="flex-1">
-                <h3 className={`font-bold text-lg ${kycDetails.is_verified || kycDetails.kyc_verified ? 'text-emerald-800' : 'text-rose-800'}`}>
-                  KYC {kycDetails.is_verified || kycDetails.kyc_verified ? 'Verified Successfully' : 'Verification Failed'}
+                <h3 className={`font-bold text-lg ${kycDetails.status === 'PASSED' || kycDetails.is_verified || kycDetails.kyc_verified ? 'text-emerald-800' : 'text-rose-800'}`}>
+                  KYC {kycDetails.status === 'PASSED' || kycDetails.is_verified || kycDetails.kyc_verified ? 'Verified Successfully' : 'Verification Failed'}
                 </h3>
                 <div className="mt-3 grid grid-cols-3 gap-4">
                   <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className="text-2xl font-bold text-dark-900">{kycDetails.kyc_score || kycDetails.score || 0}</p>
+                    <p className="text-2xl font-bold text-dark-900">{kycDetails.name_match_score || kycDetails.kyc_score || kycDetails.score || 0}</p>
                     <p className="text-xs text-dark-500">KYC Score</p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className={`text-2xl font-bold ${kycDetails.address_verified ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {kycDetails.address_verified ? '✓' : '✗'}
+                    <p className={`text-2xl font-bold ${kycDetails.address_verified === 'YES' || kycDetails.address_verified === true ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {kycDetails.address_verified === 'YES' || kycDetails.address_verified === true ? '✓' : '✗'}
                     </p>
                     <p className="text-xs text-dark-500">Address</p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                    <p className={`text-2xl font-bold ${kycDetails.identity_verified ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {kycDetails.identity_verified ? '✓' : '✗'}
+                    <p className={`text-2xl font-bold ${kycDetails.pan_verified === 'YES' || kycDetails.pan_verified === true || kycDetails.identity_verified ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {kycDetails.pan_verified === 'YES' || kycDetails.pan_verified === true || kycDetails.identity_verified ? '✓' : '✗'}
                     </p>
-                    <p className="text-xs text-dark-500">Identity</p>
+                    <p className="text-xs text-dark-500">PAN</p>
                   </div>
                 </div>
               </div>
