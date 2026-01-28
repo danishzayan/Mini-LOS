@@ -19,15 +19,15 @@ export default function Stepper({ currentStep, completedSteps = [] }) {
                   className={`
                     relative flex h-10 w-10 items-center justify-center rounded-full
                     ${isCompleted
-                      ? 'bg-primary-600'
+                      ? 'bg-primary-500'
                       : isCurrent
-                        ? 'border-2 border-primary-600 bg-white'
+                        ? 'border-2 border-primary-500 bg-white'
                         : 'border-2 border-gray-300 bg-white'
                     }
                   `}
                 >
                   {isCompleted ? (
-                    <Check className="h-5 w-5 text-white" />
+                    <Check className="h-5 w-5 text-gray-900" />
                   ) : (
                     <span
                       className={`text-sm font-medium ${
@@ -42,7 +42,7 @@ export default function Stepper({ currentStep, completedSteps = [] }) {
                   <div
                     className={`
                       ml-4 h-0.5 flex-1
-                      ${isCompleted ? 'bg-primary-600' : 'bg-gray-300'}
+                      ${isCompleted ? 'bg-primary-500' : 'bg-gray-300'}
                     `}
                   />
                 )}

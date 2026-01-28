@@ -5,19 +5,19 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-8rem)]">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20">
+      <section className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Get Your Loan Approved in Minutes
             </h1>
-            <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
               Mini-LOS provides a streamlined loan application process with instant 
               KYC verification and credit assessment.
             </p>
             <Link
               href="/loan/apply"
-              className="inline-flex items-center gap-2 bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-50 transition-colors"
+              className="inline-flex items-center gap-2 bg-primary-500 text-gray-900 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-400 transition-colors"
             >
               Apply Now
               <ArrowRight className="h-5 w-5" />
@@ -91,7 +91,7 @@ export default function Home() {
               { step: 4, title: 'Get Result', desc: 'Receive instant eligibility decision' },
             ].map((item) => (
               <div key={item.step} className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-600 text-white rounded-full font-bold text-lg mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-500 text-gray-900 rounded-full font-bold text-lg mb-4">
                   {item.step}
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{item.title}</h3>
@@ -103,7 +103,7 @@ export default function Home() {
           <div className="text-center mt-12">
             <Link
               href="/loan/apply"
-              className="inline-flex items-center gap-2 btn-primary text-lg px-8 py-3"
+              className="inline-flex items-center gap-2 bg-primary-500 text-gray-900 font-semibold text-lg px-8 py-3 rounded-lg hover:bg-primary-400 transition-colors"
             >
               Start Application
               <ArrowRight className="h-5 w-5" />

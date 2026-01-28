@@ -15,8 +15,8 @@ export default function RootLayout({ children }) {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
                 <a href="/" className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">M</span>
+                  <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-900 font-bold text-lg">M</span>
                   </div>
                   <span className="text-xl font-bold text-gray-900">Mini-LOS</span>
                 </a>
