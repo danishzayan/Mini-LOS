@@ -15,8 +15,7 @@ from app.models.user import User
 from app.schemas.user import (
     UserCreate,
     UserResponse,
-    Token,
-    LoginRequest
+    Token
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -26,15 +25,12 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user.
-    """
-    # Check if username exists
-    existing_user = db.query(User).filter(User.username == user_data.username).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
     
+    Required fields:
+    - email: Valid email address
+    - full_name: User's full name  
+    - password: Password
+    """
     # Check if email exists
     existing_email = db.query(User).filter(User.email == user_data.email).first()
     if existing_email:
@@ -46,7 +42,6 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
-        username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_password
@@ -62,14 +57,16 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """
-    OAuth2 compatible token login, get an access token for future requests.
+    OAuth2 compatible token login.
+    
+    Use email as username in the form.
     """
-    user = db.query(User).filter(User.username == form_data.username).first()
+    user = db.query(User).filter(User.email == form_data.username).first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -81,35 +78,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username},
-        expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@router.post("/token", response_model=Token)
-def login_json(login_data: LoginRequest, db: Session = Depends(get_db)):
-    """
-    JSON-based login endpoint (alternative to OAuth2 form).
-    """
-    user = db.query(User).filter(User.username == login_data.username).first()
-    
-    if not user or not verify_password(login_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
-        )
-    
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username},
+        data={"sub": user.email},
         expires_delta=access_token_expires
     )
     

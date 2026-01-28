@@ -8,13 +8,13 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     
-    # Database (PostgreSQL)
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/mini_los"
+    # Database
+    DATABASE_URL: str = "postgresql://postgres:2468@localhost:5432/mini_los"
     
     # JWT Settings
-    SECRET_KEY: str = "your-super-secret-key-change-in-production"
+    SECRET_KEY: str = "op3456qrst7890uvwx5678yzab9012cdef3456"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     class Config:
         env_file = ".env"

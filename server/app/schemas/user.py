@@ -4,9 +4,8 @@ from datetime import datetime
 
 
 class UserBase(BaseModel):
-    username: str
     email: EmailStr
-    full_name: Optional[str] = None
+    full_name: str
 
 
 class UserCreate(UserBase):
@@ -35,9 +34,4 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+    email: Optional[str] = None

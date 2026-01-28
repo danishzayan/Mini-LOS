@@ -17,8 +17,8 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     create_tables()
-    print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully!")
-    print(f"📊 Database: {settings.DATABASE_URL}")
+    print(f" {settings.APP_NAME} v{settings.APP_VERSION} started successfully!")
+    print(f" Database: {settings.DATABASE_URL}")
     yield
     # Shutdown
     print("👋 Application shutting down...")
@@ -28,29 +28,25 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="""
-    Mini Loan Origination System (Mini-LOS) API
+    Mini Loan Origination System API
     
     ## Features
-    - 📝 Customer Onboarding (Loan Application)
-    - 🔐 KYC Verification
-    - 📊 Credit Bureau Check
-    - ✅ Eligibility Calculation
-    - 👨‍💼 Admin Dashboard
-    
-    ## Workflow
-    1. Create Application → DRAFT
-    2. Perform KYC → KYC_PENDING → KYC_COMPLETED
-    3. Credit Check → CREDIT_CHECK_PENDING → CREDIT_CHECK_COMPLETED
-    4. Final Status → ELIGIBLE or NOT_ELIGIBLE
+    - Customer Onboarding (Loan Application)
+    - KYC Verification
+    - Credit Bureau Check
+    - Eligibility Calculation
+    - Admin Dashboard
     """,
     version=settings.APP_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan
 )
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,25 +70,24 @@ app.include_router(credit.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 
 
-# Health check endpoint
 @app.get("/", tags=["Health"])
 def root():
-    """Health check endpoint"""
     return {
-        "status": "healthy",
         "app": settings.APP_NAME,
-        "version": settings.APP_VERSION
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "health_check": "/health",
     }
 
 
+# Health check endpoint
 @app.get("/health", tags=["Health"])
 def health_check():
-    """Detailed health check"""
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "database": "connected"
     }
 
 
