@@ -164,14 +164,16 @@ export default function Header() {
                     
                     {/* Menu Links */}
                     <div className="py-1 border-b border-dark-100">
-                      <Link
-                        href="/my-applications"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-dark-700 hover:bg-dark-50 transition-colors duration-200"
-                      >
-                        <LayoutDashboard className="w-4 h-4" />
-                        <span className="font-medium">Dashboard</span>
-                      </Link>
+                      {!user.is_admin && (
+                        <Link
+                          href="/my-applications"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-dark-700 hover:bg-dark-50 transition-colors duration-200"
+                        >
+                          <LayoutDashboard className="w-4 h-4" />
+                          <span className="font-medium">Dashboard</span>
+                        </Link>
+                      )}
                       {user.is_admin && (
                         <Link
                           href="/admin"
