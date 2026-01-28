@@ -966,16 +966,6 @@ export default function AdminPage() {
                       All
                     </button>
                     <button
-                      onClick={() => { setEligibilityFilter('PENDING'); setStatusFilter('ALL'); setCurrentPage(1); }}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        eligibilityFilter === 'PENDING'
-                          ? 'bg-yellow-500 text-white border-yellow-500'
-                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Pending
-                    </button>
-                    <button
                       onClick={() => { setEligibilityFilter('ELIGIBLE'); setStatusFilter('ALL'); setCurrentPage(1); }}
                       className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
                         eligibilityFilter === 'ELIGIBLE'
