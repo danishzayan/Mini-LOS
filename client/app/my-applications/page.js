@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { loanService, authService } from '@/services/loan.service';
+import { API_ENDPOINTS } from '@/utils/constants';
+import axios from 'axios';
 import { 
   FileText, Clock, CheckCircle, XCircle, AlertCircle, 
   Loader2, Edit2, Eye, ArrowRight, Plus, RefreshCw,
@@ -313,10 +315,88 @@ export default function MyApplicationsPage() {
     router.push(`/loan/apply?continue=${loan.id}`);
   };
 
-  // View details
-  const handleView = (loan) => {
-    router.push(`/loan/track?id=${loan.id}`);
+
+  // Loan Details Modal state
+  const [viewingLoan, setViewingLoan] = useState(null);
+  const [viewingLoanLoading, setViewingLoanLoading] = useState(false);
+  const [viewingLoanError, setViewingLoanError] = useState(null);
+
+  // View details handler (fetches latest loan details)
+  const handleView = async (loan) => {
+    setViewingLoanLoading(true);
+    setViewingLoanError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(API_ENDPOINTS.GET_LOAN(loan.id), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setViewingLoan(res.data);
+    } catch (err) {
+      setViewingLoanError(err.message || 'Failed to load details');
+      setViewingLoan(null);
+    } finally {
+      setViewingLoanLoading(false);
+    }
   };
+// Loan Details Modal
+const LoanDetailsModal = ({ loan, onClose, loading, error }) => {
+  if (!loan && !loading) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-primary-500 to-primary-600 rounded-t-2xl">
+          <div>
+            <h2 className="text-lg font-bold text-white">Application Details</h2>
+            <p className="text-sm text-white/80">Application #{loan?.id}</p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white text-2xl font-light">×</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="text-center py-8 text-primary-600 font-semibold">Loading details...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-600 font-semibold">{error}</div>
+          ) : (
+            <>
+              <h3 className="font-bold text-dark-900 mb-2">Applicant Info</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div><span className="text-xs text-gray-500">Full Name</span><div className="font-medium">{loan.full_name}</div></div>
+                <div><span className="text-xs text-gray-500">Mobile</span><div className="font-medium">{loan.mobile}</div></div>
+                <div><span className="text-xs text-gray-500">PAN</span><div className="font-medium">{loan.pan}</div></div>
+                <div><span className="text-xs text-gray-500">DOB</span><div className="font-medium">{loan.dob}</div></div>
+                <div><span className="text-xs text-gray-500">Email</span><div className="font-medium">{loan.email}</div></div>
+                <div><span className="text-xs text-gray-500">Employment Type</span><div className="font-medium">{loan.employment_type}</div></div>
+                <div><span className="text-xs text-gray-500">Monthly Income</span><div className="font-medium">₹{loan.monthly_income?.toLocaleString()}</div></div>
+                <div><span className="text-xs text-gray-500">Loan Amount</span><div className="font-medium">₹{loan.loan_amount?.toLocaleString()}</div></div>
+                <div className="md:col-span-2"><span className="text-xs text-gray-500">Address</span><div className="font-medium">{loan.address || '-'}</div></div>
+              </div>
+              <h3 className="font-bold text-dark-900 mb-2">KYC Result</h3>
+              {loan.kyc_result ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div><span className="text-xs text-gray-500">Status</span><div className="font-medium">{loan.kyc_result.status}</div></div>
+                  <div><span className="text-xs text-gray-500">Name Match Score</span><div className="font-medium">{loan.kyc_result.name_match_score}</div></div>
+                  <div><span className="text-xs text-gray-500">PAN Verified</span><div className="font-medium">{loan.kyc_result.pan_verified}</div></div>
+                  <div><span className="text-xs text-gray-500">Address Verified</span><div className="font-medium">{loan.kyc_result.address_verified}</div></div>
+                  <div className="md:col-span-2"><span className="text-xs text-gray-500">Checked At</span><div className="font-medium">{loan.kyc_result.created_at ? new Date(loan.kyc_result.created_at).toLocaleString() : '-'}</div></div>
+                </div>
+              ) : <div className="mb-6 text-gray-500">No KYC result</div>}
+              <h3 className="font-bold text-dark-900 mb-2">Credit Result</h3>
+              {loan.credit_result ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                  <div><span className="text-xs text-gray-500">Credit Score</span><div className="font-medium">{loan.credit_result.credit_score}</div></div>
+                  <div><span className="text-xs text-gray-500">Active Loans</span><div className="font-medium">{loan.credit_result.active_loans}</div></div>
+                  <div><span className="text-xs text-gray-500">Approved</span><div className="font-medium">{loan.credit_result.is_approved ? 'Yes' : 'No'}</div></div>
+                  <div className="md:col-span-2"><span className="text-xs text-gray-500">Rejection Reason</span><div className="font-medium">{loan.credit_result.rejection_reason || '-'}</div></div>
+                  <div className="md:col-span-2"><span className="text-xs text-gray-500">Checked At</span><div className="font-medium">{loan.credit_result.created_at ? new Date(loan.credit_result.created_at).toLocaleString() : '-'}</div></div>
+                </div>
+              ) : <div className="mb-2 text-gray-500">No credit result</div>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
   // Refresh data
   const refreshData = async () => {
@@ -387,7 +467,7 @@ export default function MyApplicationsPage() {
           title="Draft"
           value={stats.draft}
           icon={Edit2}
-          color="bg-gray-100 text-gray-600"
+          color="bg-orange-100 text-orange-600"
           subtitle="Can edit"
         />
         <StatCard
@@ -528,6 +608,16 @@ export default function MyApplicationsPage() {
           loan={editingLoan}
           onClose={() => setEditingLoan(null)}
           onSave={handleUpdate}
+        />
+      )}
+
+      {/* Loan Details Modal */}
+      {(viewingLoan || viewingLoanLoading || viewingLoanError) && (
+        <LoanDetailsModal
+          loan={viewingLoan}
+          loading={viewingLoanLoading}
+          error={viewingLoanError}
+          onClose={() => { setViewingLoan(null); setViewingLoanError(null); }}
         />
       )}
     </div>

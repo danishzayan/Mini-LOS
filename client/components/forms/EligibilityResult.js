@@ -220,7 +220,7 @@ export default function EligibilityResult({ loan, onReset }) {
                 }}
               >
                 <Home className="h-4 w-4" />
-                Go to Home
+                Go to Dashboard
               </Button>
             </div>
           </div>
