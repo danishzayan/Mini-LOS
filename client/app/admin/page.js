@@ -5,6 +5,7 @@ import { loanService, authService } from '@/services/loan.service';
 import StatusBadge from '@/components/StatusBadge';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
+import { WORKFLOW_STATES } from '@/utils/constants';
 import { 
   Users, 
   FileText, 
@@ -25,7 +26,13 @@ import {
   IndianRupee,
   Eye,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Filter,
+  X,
+  MapPin,
+  User,
+  ArrowRight,
+  History
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -45,6 +52,14 @@ export default function AdminPage() {
   
   // Expanded row state
   const [expandedRow, setExpandedRow] = useState(null);
+  
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [eligibilityFilter, setEligibilityFilter] = useState('ALL'); // ALL, ELIGIBLE, NOT_ELIGIBLE
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Journey modal state
+  const [journeyModal, setJourneyModal] = useState({ open: false, loan: null });
 
   // Check for existing auth on mount
   useEffect(() => {
@@ -110,15 +125,58 @@ export default function AdminPage() {
     setStats(null);
   };
 
+  // Filter loans
+  const filteredLoans = loans.filter(loan => {
+    // Status filter
+    if (statusFilter !== 'ALL' && loan.status !== statusFilter) {
+      return false;
+    }
+    // Eligibility filter
+    if (eligibilityFilter === 'ELIGIBLE' && loan.status !== WORKFLOW_STATES.ELIGIBLE) {
+      return false;
+    }
+    if (eligibilityFilter === 'NOT_ELIGIBLE' && loan.status !== WORKFLOW_STATES.NOT_ELIGIBLE) {
+      return false;
+    }
+    if (eligibilityFilter === 'PENDING' && 
+        (loan.status === WORKFLOW_STATES.ELIGIBLE || loan.status === WORKFLOW_STATES.NOT_ELIGIBLE)) {
+      return false;
+    }
+    return true;
+  });
+
   // Pagination calculations
-  const totalPages = Math.ceil(loans.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentLoans = loans.slice(startIndex, endIndex);
+  const currentLoans = filteredLoans.slice(startIndex, endIndex);
 
   const goToPage = (page) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
     setExpandedRow(null);
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setStatusFilter('ALL');
+    setEligibilityFilter('ALL');
+    setCurrentPage(1);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = statusFilter !== 'ALL' || eligibilityFilter !== 'ALL';
+
+  // View journey for a loan
+  const viewJourney = async (loan) => {
+    try {
+      // Fetch detailed loan info with KYC/Credit results
+      const detailedLoan = await loanService.getLoan(loan.id);
+      setJourneyModal({ open: true, loan: detailedLoan });
+    } catch (err) {
+      console.error('Failed to fetch loan details:', err);
+      // Fallback to basic loan data
+      setJourneyModal({ open: true, loan });
+    }
   };
 
   // Format date
@@ -298,11 +356,329 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Journey Modal */}
+      {journeyModal.open && journeyModal.loan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <History className="w-5 h-5 text-primary-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Application Journey</h3>
+                  <p className="text-sm text-gray-500">#{journeyModal.loan.id} - {journeyModal.loan.full_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setJourneyModal({ open: false, loan: null })}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {/* Timeline */}
+              <div className="relative">
+                {/* Application Created */}
+                <div className="flex gap-4 pb-8">
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <h4 className="font-semibold text-gray-900">Application Submitted</h4>
+                    <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.created_at)}</p>
+                    <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><span className="text-gray-500">Amount:</span> <span className="font-medium">₹{(journeyModal.loan.loan_amount || 0).toLocaleString('en-IN')}</span></div>
+                        <div><span className="text-gray-500">Purpose:</span> <span className="font-medium">{journeyModal.loan.loan_purpose || 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Employment:</span> <span className="font-medium">{journeyModal.loan.employment_type}</span></div>
+                        <div><span className="text-gray-500">Income:</span> <span className="font-medium">₹{(journeyModal.loan.monthly_income || 0).toLocaleString('en-IN')}/mo</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* KYC Verification */}
+                <div className="flex gap-4 pb-8">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      journeyModal.loan.kyc_result 
+                        ? journeyModal.loan.kyc_result.status === 'PASS' 
+                          ? 'bg-green-100' 
+                          : 'bg-red-100'
+                        : 'bg-gray-100'
+                    }`}>
+                      <User className={`w-5 h-5 ${
+                        journeyModal.loan.kyc_result 
+                          ? journeyModal.loan.kyc_result.status === 'PASS' 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                          : 'text-gray-400'
+                      }`} />
+                    </div>
+                    <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900">KYC Verification</h4>
+                      {journeyModal.loan.kyc_result && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          journeyModal.loan.kyc_result.status === 'PASS' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {journeyModal.loan.kyc_result.status}
+                        </span>
+                      )}
+                    </div>
+                    {journeyModal.loan.kyc_result ? (
+                      <>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.kyc_result.created_at)}</p>
+                        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><span className="text-gray-500">Name Match:</span> <span className="font-medium">{journeyModal.loan.kyc_result.name_match_score}/100</span></div>
+                            <div><span className="text-gray-500">PAN Verified:</span> <span className="font-medium">{journeyModal.loan.kyc_result.pan_verified}</span></div>
+                            <div><span className="text-gray-500">Address Verified:</span> <span className="font-medium">{journeyModal.loan.kyc_result.address_verified}</span></div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-1 italic">Pending verification</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Credit Check */}
+                <div className="flex gap-4 pb-8">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      journeyModal.loan.credit_result 
+                        ? journeyModal.loan.credit_result.is_approved 
+                          ? 'bg-green-100' 
+                          : 'bg-red-100'
+                        : 'bg-gray-100'
+                    }`}>
+                      <CreditCard className={`w-5 h-5 ${
+                        journeyModal.loan.credit_result 
+                          ? journeyModal.loan.credit_result.is_approved 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                          : 'text-gray-400'
+                      }`} />
+                    </div>
+                    <div className="w-0.5 h-full bg-gray-200 mt-2"></div>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900">Credit Check</h4>
+                      {journeyModal.loan.credit_result && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          journeyModal.loan.credit_result.is_approved 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {journeyModal.loan.credit_result.is_approved ? 'APPROVED' : 'REJECTED'}
+                        </span>
+                      )}
+                    </div>
+                    {journeyModal.loan.credit_result ? (
+                      <>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.credit_result.created_at)}</p>
+                        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><span className="text-gray-500">Credit Score:</span> <span className="font-medium">{journeyModal.loan.credit_result.credit_score}</span></div>
+                            <div><span className="text-gray-500">Active Loans:</span> <span className="font-medium">{journeyModal.loan.credit_result.active_loans}</span></div>
+                            {journeyModal.loan.credit_result.rejection_reason && (
+                              <div className="col-span-2"><span className="text-gray-500">Reason:</span> <span className="font-medium text-red-600">{journeyModal.loan.credit_result.rejection_reason}</span></div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-1 italic">Pending credit check</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Final Result */}
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE 
+                        ? 'bg-green-100' 
+                        : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE
+                          ? 'bg-red-100'
+                          : 'bg-gray-100'
+                    }`}>
+                      {journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE ? (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      ) : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE ? (
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900">Final Decision</h4>
+                      <StatusBadge status={journeyModal.loan.status} size="sm" />
+                    </div>
+                    {journeyModal.loan.eligibility_result ? (
+                      <>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(journeyModal.loan.eligibility_result.created_at)}</p>
+                        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
+                          {journeyModal.loan.eligibility_result.is_eligible ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div><span className="text-gray-500">Eligible Amount:</span> <span className="font-medium text-green-600">₹{(journeyModal.loan.eligibility_result.eligible_amount || 0).toLocaleString('en-IN')}</span></div>
+                              <div><span className="text-gray-500">Interest Rate:</span> <span className="font-medium">{journeyModal.loan.eligibility_result.interest_rate}%</span></div>
+                              <div><span className="text-gray-500">Tenure:</span> <span className="font-medium">{journeyModal.loan.eligibility_result.tenure_months} months</span></div>
+                              <div><span className="text-gray-500">Max EMI:</span> <span className="font-medium">₹{(journeyModal.loan.eligibility_result.max_emi || 0).toLocaleString('en-IN')}</span></div>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="text-gray-500">Rejection Reasons:</span>
+                              <ul className="mt-1 list-disc list-inside text-red-600">
+                                {(journeyModal.loan.eligibility_result.rejection_reasons || []).map((reason, idx) => (
+                                  <li key={idx}>{reason}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-1 italic">Awaiting final decision</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-200 px-6 py-4 flex justify-end">
+              <Button variant="secondary" onClick={() => setJourneyModal({ open: false, loan: null })}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Loans Table */}
       <div className="bg-white rounded-2xl shadow-card border border-dark-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-900">All Applications</h2>
-          <span className="text-sm text-gray-500">{loans.length} total records</span>
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">All Applications</h2>
+              <span className="text-sm text-gray-500">
+                {filteredLoans.length} of {loans.length} records
+                {hasActiveFilters && ' (filtered)'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                  showFilters || hasActiveFilters
+                    ? 'bg-primary-50 border-primary-200 text-primary-700'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span className="text-sm font-medium">Filters</span>
+                {hasActiveFilters && (
+                  <span className="w-2 h-2 bg-primary-500 rounded-full"></span>
+                )}
+              </button>
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="inline-flex items-center gap-1 px-2 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Filters Panel */}
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value={WORKFLOW_STATES.DRAFT}>Draft</option>
+                    <option value={WORKFLOW_STATES.KYC_PENDING}>KYC Pending</option>
+                    <option value={WORKFLOW_STATES.KYC_COMPLETED}>KYC Completed</option>
+                    <option value={WORKFLOW_STATES.CREDIT_CHECK_PENDING}>Credit Check Pending</option>
+                    <option value={WORKFLOW_STATES.CREDIT_CHECK_COMPLETED}>Credit Check Completed</option>
+                    <option value={WORKFLOW_STATES.ELIGIBLE}>Eligible</option>
+                    <option value={WORKFLOW_STATES.NOT_ELIGIBLE}>Not Eligible</option>
+                  </select>
+                </div>
+                
+                {/* Eligibility Quick Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quick Filter</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setEligibilityFilter('ALL'); setStatusFilter('ALL'); setCurrentPage(1); }}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                        eligibilityFilter === 'ALL' && statusFilter === 'ALL'
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => { setEligibilityFilter('PENDING'); setStatusFilter('ALL'); setCurrentPage(1); }}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                        eligibilityFilter === 'PENDING'
+                          ? 'bg-yellow-500 text-white border-yellow-500'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Pending
+                    </button>
+                    <button
+                      onClick={() => { setEligibilityFilter('ELIGIBLE'); setStatusFilter('ALL'); setCurrentPage(1); }}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                        eligibilityFilter === 'ELIGIBLE'
+                          ? 'bg-green-500 text-white border-green-500'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Eligible
+                    </button>
+                    <button
+                      onClick={() => { setEligibilityFilter('NOT_ELIGIBLE'); setStatusFilter('ALL'); setCurrentPage(1); }}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                        eligibilityFilter === 'NOT_ELIGIBLE'
+                          ? 'bg-red-500 text-white border-red-500'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Not Eligible
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {loading ? (
@@ -330,7 +706,7 @@ export default function AdminPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Loan Amount</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Details</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
@@ -399,16 +775,26 @@ export default function AdminPage() {
                           <div className="text-xs text-gray-500">{new Date(loan.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center">
-                          <button
-                            onClick={() => setExpandedRow(expandedRow === loan.id ? null : loan.id)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            {expandedRow === loan.id ? (
-                              <ChevronUp className="w-4 h-4 text-gray-600" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-600" />
-                            )}
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => viewJourney(loan)}
+                              className="p-2 hover:bg-primary-50 rounded-lg transition-colors group"
+                              title="View Journey"
+                            >
+                              <History className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+                            </button>
+                            <button
+                              onClick={() => setExpandedRow(expandedRow === loan.id ? null : loan.id)}
+                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Show Details"
+                            >
+                              {expandedRow === loan.id ? (
+                                <ChevronUp className="w-4 h-4 text-gray-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-gray-600" />
+                              )}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       {/* Expanded Row Details */}
@@ -474,7 +860,8 @@ export default function AdminPage() {
             {totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, loans.length)} of {loans.length} applications
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredLoans.length)} of {filteredLoans.length} applications
+                  {hasActiveFilters && ` (filtered from ${loans.length})`}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
