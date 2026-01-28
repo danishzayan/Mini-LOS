@@ -27,20 +27,59 @@ from app.services.eligibility_service import calculate_eligibility
 
 router = APIRouter(prefix="/loan", tags=["Loan Application"])
 
+# Maximum active loans per user
+MAX_ACTIVE_LOANS_PER_USER = 5
+
+
+@router.get("/my-loans", response_model=list[LoanApplicationResponse])
+def get_my_loans(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get all loan applications for the current logged-in user.
+    """
+    loans = db.query(LoanApplication).filter(
+        LoanApplication.user_id == current_user.id
+    ).order_by(LoanApplication.created_at.desc()).all()
+    
+    return loans
+
 
 @router.post("/create", response_model=LoanApplicationResponse, status_code=status.HTTP_201_CREATED)
 def create_loan_application(
     application: LoanApplicationCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Create a new loan application (Customer Onboarding).
+    
+    Requires authentication. User can only apply with their registered email.
+    Maximum 5 active loans per user.
     
     Validates:
     - PAN format (ABCDE1234F)
     - Age >= 21
     - Loan amount <= 20 × monthly income
+    - Max 5 active loans per user
     """
+    # Count active loans for this user (not in terminal states)
+    active_loans_count = db.query(LoanApplication).filter(
+        LoanApplication.user_id == current_user.id,
+        LoanApplication.status.notin_([
+            ApplicationStatus.ELIGIBLE.value,
+            ApplicationStatus.NOT_ELIGIBLE.value
+        ])
+    ).count()
+    
+    if active_loans_count >= MAX_ACTIVE_LOANS_PER_USER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {MAX_ACTIVE_LOANS_PER_USER} active loan applications allowed per user. "
+                   f"You currently have {active_loans_count} active applications."
+        )
+    
     # Validate application data
     validation_result = validate_application_data(
         pan=application.pan,
@@ -52,8 +91,9 @@ def create_loan_application(
     if not validation_result["is_valid"]:
         raise_bad_request("; ".join(validation_result["errors"]))
     
-    # Check for existing application with same PAN (optional business rule)
+    # Check for existing application with same PAN (for this user)
     existing = db.query(LoanApplication).filter(
+        LoanApplication.user_id == current_user.id,
         LoanApplication.pan == application.pan,
         LoanApplication.status.notin_([
             ApplicationStatus.ELIGIBLE.value,
@@ -67,13 +107,14 @@ def create_loan_application(
             detail=f"An active application already exists for this PAN. Application ID: {existing.id}"
         )
     
-    # Create application
+    # Create application - use user's email automatically
     db_application = LoanApplication(
+        user_id=current_user.id,
         full_name=application.full_name,
         mobile=application.mobile,
         pan=application.pan,
         dob=application.dob,
-        email=application.email,
+        email=current_user.email,  # Always use the logged-in user's email
         address=application.address,
         employment_type=application.employment_type.value,
         monthly_income=application.monthly_income,

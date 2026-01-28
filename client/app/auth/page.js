@@ -11,7 +11,7 @@ import Link from 'next/link';
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/loan/apply';
+  const redirectTo = searchParams.get('redirect') || '/my-applications';
   
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);

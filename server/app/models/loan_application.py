@@ -10,6 +10,9 @@ class LoanApplication(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
+    # User who created the application (foreign key to users table)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    
     # Personal Information
     full_name = Column(String(100), nullable=False)
     mobile = Column(String(15), nullable=False)
@@ -34,6 +37,7 @@ class LoanApplication(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
+    user = relationship("User", back_populates="loan_applications")
     kyc_result = relationship("KYCResult", back_populates="loan_application", uselist=False)
     credit_result = relationship("CreditResult", back_populates="loan_application", uselist=False)
     eligibility_result = relationship("EligibilityResult", back_populates="loan_application", uselist=False)

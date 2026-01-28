@@ -1,22 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
 
-export default function OnboardingForm({ onSubmit, loading }) {
+export default function OnboardingForm({ onSubmit, loading, user }) {
   const [formData, setFormData] = useState({
-    full_name: '',
+    full_name: user?.full_name || '',
     dob: '',
     pan: '',
     mobile: '',
-    email: '',
+    email: user?.email || '',
     address: '',
     employment_type: 'SALARIED',
     monthly_income: '',
     loan_amount: '',
     loan_purpose: '',
   });
+
+  // Update form when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        full_name: user.full_name || prev.full_name,
+        email: user.email || prev.email,
+      }));
+    }
+  }, [user]);
 
   const [errors, setErrors] = useState({});
 
@@ -141,7 +152,12 @@ export default function OnboardingForm({ onSubmit, loading }) {
             value={formData.dob}
             onChange={handleChange}
             error={errors.dob}
-            max={new Date().toISOString().split('T')[0]}
+            // Only allow dates where age >= 21
+            max={(() => {
+              const today = new Date();
+              today.setFullYear(today.getFullYear() - 21);
+              return today.toISOString().split('T')[0];
+            })()}
             required
           />
 
@@ -178,6 +194,8 @@ export default function OnboardingForm({ onSubmit, loading }) {
             error={errors.email}
             placeholder="you@example.com"
             required
+            disabled={!!user?.email}
+            className={user?.email ? 'bg-gray-100 cursor-not-allowed' : ''}
           />
 
           <Input

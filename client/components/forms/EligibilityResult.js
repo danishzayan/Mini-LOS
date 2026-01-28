@@ -216,7 +216,7 @@ export default function EligibilityResult({ loan, onReset }) {
                 className="w-full gap-2"
                 onClick={() => {
                   setShowDisbursementModal(false);
-                  router.push('/');
+                  router.push('/my-applications');
                 }}
               >
                 <Home className="h-4 w-4" />

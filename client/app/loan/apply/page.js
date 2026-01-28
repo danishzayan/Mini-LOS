@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Stepper from '@/components/Stepper';
 import OnboardingForm from '@/components/forms/OnboardingForm';
 import KYCStep from '@/components/forms/KYCStep';
@@ -10,10 +10,13 @@ import EligibilityResult from '@/components/forms/EligibilityResult';
 import { useLoanApplication } from '@/hooks/useLoanApplication';
 import { authService } from '@/services/loan.service';
 import { WORKFLOW_STATES, STATE_TO_STEP } from '@/utils/constants';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function LoanApplyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const continueId = searchParams.get('continue');
+  
   const [authChecking, setAuthChecking] = useState(true);
   const [user, setUser] = useState(null);
   
@@ -23,6 +26,7 @@ export default function LoanApplyPage() {
     error,
     currentStep,
     createLoan,
+    fetchLoan,
     submitKYC,
     runCreditCheck,
     isComplete,
@@ -44,6 +48,11 @@ export default function LoanApplyPage() {
         const userData = await authService.getMe();
         setUser(userData);
         setAuthChecking(false);
+        
+        // If continuing an existing application, fetch it
+        if (continueId) {
+          await fetchLoan(parseInt(continueId));
+        }
       } catch (err) {
         localStorage.removeItem('token');
         router.push('/auth?redirect=/loan/apply');
@@ -51,7 +60,7 @@ export default function LoanApplyPage() {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, continueId, fetchLoan]);
 
   // Update completed steps based on loan state
   useEffect(() => {
@@ -101,7 +110,7 @@ export default function LoanApplyPage() {
   // Determine which step to show
   const getStepContent = () => {
     if (!loan) {
-      return <OnboardingForm onSubmit={handleOnboardingSubmit} loading={loading} />;
+      return <OnboardingForm onSubmit={handleOnboardingSubmit} loading={loading} user={user} />;
     }
 
     // Backend uses 'status', normalize to handle both
@@ -125,7 +134,7 @@ export default function LoanApplyPage() {
       return <EligibilityResult loan={loan} onReset={reset} />;
     }
 
-    return <OnboardingForm onSubmit={handleOnboardingSubmit} loading={loading} />;
+    return <OnboardingForm onSubmit={handleOnboardingSubmit} loading={loading} user={user} />;
   };
 
   // Show loading while checking auth
@@ -142,8 +151,17 @@ export default function LoanApplyPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Back Button */}
+      <button
+        onClick={() => router.push('/my-applications')}
+        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="font-medium">Back Dashboard</span>
+      </button>
+
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Loan Application</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Onboarding</h1>
         <p className="text-gray-600">
           Welcome, <span className="font-semibold text-primary-600">{user?.full_name}</span>! Complete the following steps to apply for a loan.
         </p>

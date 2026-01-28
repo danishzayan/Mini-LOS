@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { authService } from '@/services/loan.service';
-import { LogOut, ChevronDown, Shield, User } from 'lucide-react';
+import { LogOut, ChevronDown, Shield, User, FileText, LayoutDashboard } from 'lucide-react';
 
 export default function Header() {
   const router = useRouter();
@@ -86,25 +86,11 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-shadow duration-300">
-              <span className="text-dark-900 font-bold text-lg">M</span>
-            </div>
             <span className="text-xl font-bold text-dark-900">Mini-LOS</span>
           </Link>
 
           {/* Navigation */}
           <nav className="flex items-center gap-6">
-            <Link 
-              href={user ? "/loan/apply" : "/auth?redirect=/loan/apply"}
-              className={`font-medium transition-colors duration-200 ${
-                pathname === '/loan/apply' 
-                  ? 'text-primary-600' 
-                  : 'text-dark-600 hover:text-primary-600'
-              }`}
-            >
-              Apply for Loan
-            </Link>
-            
             {/* Hide Admin link if user is admin (they can access via dropdown) */}
             {(!user || !user.is_admin) && (
               <Link 
@@ -174,6 +160,28 @@ export default function Header() {
                           </span>
                         )}
                       </div>
+                    </div>
+                    
+                    {/* Menu Links */}
+                    <div className="py-1 border-b border-dark-100">
+                      <Link
+                        href="/my-applications"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-dark-700 hover:bg-dark-50 transition-colors duration-200"
+                      >
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span className="font-medium">Dashboard</span>
+                      </Link>
+                      {user.is_admin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-violet-600 hover:bg-violet-50 transition-colors duration-200"
+                        >
+                          <Shield className="w-4 h-4" />
+                          <span className="font-medium">Admin Dashboard</span>
+                        </Link>
+                      )}
                     </div>
                     
                     {/* Logout Button */}
