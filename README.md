@@ -40,8 +40,14 @@ npm run dev
 - Backend API: http://localhost:8000
 
 ### 5. Default Admin Login
-Use the credentials above to log in as admin.
+<img width="1337" height="343" alt="image" src="https://github.com/user-attachments/assets/69b2b094-7807-4257-b7d7-f6cef14d93b8" />
 
----
+Set Admin User (`is_admin = true`)
+To enable **admin login**, the `is_admin` field must be set to `true` for the required user in the `users` table.
 
-For more details, see the code comments and configuration files in each folder.
+### 🔹 SQL Query (PostgreSQL)
+
+```sql
+UPDATE users
+SET is_admin = true
+WHERE email = 'danishkamal@gmail.com';
