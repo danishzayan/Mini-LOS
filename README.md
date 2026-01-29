@@ -4,6 +4,7 @@
 
 - **Email:** danishkamal@gmail.com
 - **Password:** Danish@123
+- **To be admin follow the bullet point `5. Default Admin Login`**
 
 ## Basic Configuration & Installation
 
@@ -22,9 +23,10 @@ cd Mini-LOS
 ```
 cd server
 python -m venv venv
-venv\Scripts\activate  # On Windows
+venv\Scripts\activate
+
 pip install -r requirements.txt
-# Configure your DB in .env or app/core/config.py if needed
+
 uvicorn app.main:app --reload
 ```
 

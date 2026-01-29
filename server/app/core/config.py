@@ -3,18 +3,18 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Application
-    APP_NAME: str = "Mini-LOS"
-    APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    # Application (loaded from .env)
+    APP_NAME: str
+    APP_VERSION: str
+    DEBUG: bool
     
-    # Database
-    DATABASE_URL: str = "postgresql://postgres:2468@localhost:5432/mini_los"
+    # Database (loaded from .env)
+    DATABASE_URL: str
     
-    # JWT Settings
-    SECRET_KEY: str = "op3456qrst7890uvwx5678yzab9012cdef3456"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    # JWT Settings (loaded from .env)
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
     
     class Config:
         env_file = ".env"
