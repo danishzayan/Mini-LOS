@@ -6,11 +6,11 @@ import StatusBadge from '@/components/StatusBadge';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import { WORKFLOW_STATES } from '@/utils/constants';
-import { 
-  Users, 
-  FileText, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Users,
+  FileText,
+  CheckCircle,
+  XCircle,
   Clock,
   RefreshCw,
   LogIn,
@@ -35,7 +35,8 @@ import {
   History,
   Edit,
   RotateCcw,
-  Save
+  Save,
+  Search
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -43,33 +44,34 @@ export default function AdminPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
-  
+
   const [loans, setLoans] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
-  
+
   // Expanded row state
   const [expandedRow, setExpandedRow] = useState(null);
-  
+
   // Filter state
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [eligibilityFilter, setEligibilityFilter] = useState('ALL'); // ALL, ELIGIBLE, NOT_ELIGIBLE
+  const [eligibilityFilter, setEligibilityFilter] = useState('ALL'); // ALL, PENDING, ELIGIBLE, NOT_ELIGIBLE
+  const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Journey modal state
   const [journeyModal, setJourneyModal] = useState({ open: false, loan: null });
-  
+
   // Edit modal state
   const [editModal, setEditModal] = useState({ open: false, loan: null });
   const [editForm, setEditForm] = useState({});
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
-  
+
   // Retry KYC state
   const [retryingKyc, setRetryingKyc] = useState(null);
 
@@ -118,7 +120,7 @@ export default function AdminPage() {
     e.preventDefault();
     setIsLoggingIn(true);
     setLoginError('');
-    
+
     try {
       await authService.login(loginForm.email, loginForm.password);
       await fetchUser();
@@ -139,20 +141,29 @@ export default function AdminPage() {
 
   // Filter loans
   const filteredLoans = loans.filter(loan => {
-    // Status filter
+    // Search filter - search by name
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      if (!loan.full_name?.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+    // Status filter from dropdown
     if (statusFilter !== 'ALL' && loan.status !== statusFilter) {
       return false;
     }
-    // Eligibility filter
+    // Eligibility quick filter
     if (eligibilityFilter === 'ELIGIBLE' && loan.status !== WORKFLOW_STATES.ELIGIBLE) {
       return false;
     }
     if (eligibilityFilter === 'NOT_ELIGIBLE' && loan.status !== WORKFLOW_STATES.NOT_ELIGIBLE) {
       return false;
     }
-    if (eligibilityFilter === 'PENDING' && 
-        (loan.status === WORKFLOW_STATES.ELIGIBLE || loan.status === WORKFLOW_STATES.NOT_ELIGIBLE)) {
-      return false;
+    if (eligibilityFilter === 'PENDING') {
+      // Pending = all statuses except ELIGIBLE and NOT_ELIGIBLE
+      if (loan.status === WORKFLOW_STATES.ELIGIBLE || loan.status === WORKFLOW_STATES.NOT_ELIGIBLE) {
+        return false;
+      }
     }
     return true;
   });
@@ -172,11 +183,12 @@ export default function AdminPage() {
   const resetFilters = () => {
     setStatusFilter('ALL');
     setEligibilityFilter('ALL');
+    setSearchQuery('');
     setCurrentPage(1);
   };
 
   // Check if any filters are active
-  const hasActiveFilters = statusFilter !== 'ALL' || eligibilityFilter !== 'ALL';
+  const hasActiveFilters = statusFilter !== 'ALL' || eligibilityFilter !== 'ALL' || searchQuery.trim() !== '';
 
   // View journey for a loan using the history API
   const viewJourney = async (loan) => {
@@ -241,17 +253,17 @@ export default function AdminPage() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editModal.loan) return;
-    
+
     setEditLoading(true);
     setEditError('');
-    
+
     try {
       await loanService.updateLoan(editModal.loan.id, {
         ...editForm,
         monthly_income: parseFloat(editForm.monthly_income),
         loan_amount: parseFloat(editForm.loan_amount)
       });
-      
+
       setEditModal({ open: false, loan: null });
       fetchData(); // Refresh the data
     } catch (err) {
@@ -297,7 +309,7 @@ export default function AdminPage() {
               placeholder="admin@example.com"
               required
             />
-            
+
             <Input
               label="Password"
               type="password"
@@ -346,7 +358,7 @@ export default function AdminPage() {
             </a>
           </div>
         </div>
-        
+
         {/* Admin credentials hint */}
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-left">
           <p className="text-amber-800 text-sm font-medium mb-1">💡 Need admin access?</p>
@@ -367,9 +379,9 @@ export default function AdminPage() {
           <p className="text-gray-600">Welcome, {user.full_name}</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button 
-            variant="secondary" 
-            onClick={fetchData} 
+          <Button
+            variant="secondary"
+            onClick={fetchData}
             disabled={loading}
             className="gap-2"
           >
@@ -463,7 +475,7 @@ export default function AdminPage() {
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            
+
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-6">
               {/* Timeline */}
@@ -505,38 +517,34 @@ export default function AdminPage() {
                 {/* KYC Verification */}
                 <div className="flex gap-4 pb-8">
                   <div className="flex flex-col items-center">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${
-                      journeyModal.loan.kyc_result 
-                        ? journeyModal.loan.kyc_result.status === 'PASSED' 
-                          ? 'bg-gradient-to-br from-green-100 to-green-200' 
-                          : 'bg-gradient-to-br from-red-100 to-red-200'
-                        : 'bg-gradient-to-br from-gray-100 to-gray-200'
-                    }`}>
-                      <User className={`w-5 h-5 ${
-                        journeyModal.loan.kyc_result 
-                          ? journeyModal.loan.kyc_result.status === 'PASSED' 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                          : 'text-gray-400'
-                      }`} />
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${journeyModal.loan.kyc_result
+                      ? journeyModal.loan.kyc_result.status === 'PASSED'
+                        ? 'bg-gradient-to-br from-green-100 to-green-200'
+                        : 'bg-gradient-to-br from-red-100 to-red-200'
+                      : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                      }`}>
+                      <User className={`w-5 h-5 ${journeyModal.loan.kyc_result
+                        ? journeyModal.loan.kyc_result.status === 'PASSED'
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                        : 'text-gray-400'
+                        }`} />
                     </div>
-                    <div className={`w-0.5 h-full mt-2 ${
-                      journeyModal.loan.kyc_result 
-                        ? journeyModal.loan.kyc_result.status === 'PASSED' 
-                          ? 'bg-gradient-to-b from-green-200 to-gray-200' 
-                          : 'bg-gradient-to-b from-red-200 to-gray-200'
-                        : 'bg-gray-200'
-                    }`}></div>
+                    <div className={`w-0.5 h-full mt-2 ${journeyModal.loan.kyc_result
+                      ? journeyModal.loan.kyc_result.status === 'PASSED'
+                        ? 'bg-gradient-to-b from-green-200 to-gray-200'
+                        : 'bg-gradient-to-b from-red-200 to-gray-200'
+                      : 'bg-gray-200'
+                      }`}></div>
                   </div>
                   <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-gray-900">KYC Verification</h4>
                       {journeyModal.loan.kyc_result && (
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                          journeyModal.loan.kyc_result.status === 'PASSED' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-red-100 text-red-700'
-                        }`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${journeyModal.loan.kyc_result.status === 'PASSED'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                          }`}>
                           {journeyModal.loan.kyc_result.status}
                         </span>
                       )}
@@ -570,38 +578,34 @@ export default function AdminPage() {
                 {/* Credit Check */}
                 <div className="flex gap-4 pb-8">
                   <div className="flex flex-col items-center">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${
-                      journeyModal.loan.credit_result 
-                        ? journeyModal.loan.credit_result.is_approved 
-                          ? 'bg-gradient-to-br from-green-100 to-green-200' 
-                          : 'bg-gradient-to-br from-red-100 to-red-200'
-                        : 'bg-gradient-to-br from-gray-100 to-gray-200'
-                    }`}>
-                      <CreditCard className={`w-5 h-5 ${
-                        journeyModal.loan.credit_result 
-                          ? journeyModal.loan.credit_result.is_approved 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                          : 'text-gray-400'
-                      }`} />
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${journeyModal.loan.credit_result
+                      ? journeyModal.loan.credit_result.is_approved
+                        ? 'bg-gradient-to-br from-green-100 to-green-200'
+                        : 'bg-gradient-to-br from-red-100 to-red-200'
+                      : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                      }`}>
+                      <CreditCard className={`w-5 h-5 ${journeyModal.loan.credit_result
+                        ? journeyModal.loan.credit_result.is_approved
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                        : 'text-gray-400'
+                        }`} />
                     </div>
-                    <div className={`w-0.5 h-full mt-2 ${
-                      journeyModal.loan.credit_result 
-                        ? journeyModal.loan.credit_result.is_approved 
-                          ? 'bg-gradient-to-b from-green-200 to-gray-200' 
-                          : 'bg-gradient-to-b from-red-200 to-gray-200'
-                        : 'bg-gray-200'
-                    }`}></div>
+                    <div className={`w-0.5 h-full mt-2 ${journeyModal.loan.credit_result
+                      ? journeyModal.loan.credit_result.is_approved
+                        ? 'bg-gradient-to-b from-green-200 to-gray-200'
+                        : 'bg-gradient-to-b from-red-200 to-gray-200'
+                      : 'bg-gray-200'
+                      }`}></div>
                   </div>
                   <div className="flex-1 pb-2">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-gray-900">Credit Check</h4>
                       {journeyModal.loan.credit_result && (
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                          journeyModal.loan.credit_result.is_approved 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-red-100 text-red-700'
-                        }`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${journeyModal.loan.credit_result.is_approved
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                          }`}>
                           {journeyModal.loan.credit_result.is_approved ? 'APPROVED' : 'REJECTED'}
                         </span>
                       )}
@@ -637,13 +641,12 @@ export default function AdminPage() {
                 {/* Final Result */}
                 <div className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${
-                      journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE 
-                        ? 'bg-gradient-to-br from-green-400 to-green-500' 
-                        : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE
-                          ? 'bg-gradient-to-br from-red-400 to-red-500'
-                          : 'bg-gradient-to-br from-gray-100 to-gray-200'
-                    }`}>
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE
+                      ? 'bg-gradient-to-br from-green-400 to-green-500'
+                      : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE
+                        ? 'bg-gradient-to-br from-red-400 to-red-500'
+                        : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                      }`}>
                       {journeyModal.loan.status === WORKFLOW_STATES.ELIGIBLE ? (
                         <CheckCircle className="w-5 h-5 text-white" />
                       ) : journeyModal.loan.status === WORKFLOW_STATES.NOT_ELIGIBLE ? (
@@ -705,7 +708,7 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Fixed Footer */}
             <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end rounded-b-2xl">
               <Button variant="secondary" onClick={() => setJourneyModal({ open: false, loan: null })}>
@@ -738,7 +741,7 @@ export default function AdminPage() {
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            
+
             {/* Scrollable Form Content */}
             <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
               {editError && (
@@ -871,12 +874,12 @@ export default function AdminPage() {
                 </div>
               </div>
             </form>
-            
+
             {/* Fixed Footer */}
             <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
-              <Button 
-                type="button" 
-                variant="secondary" 
+              <Button
+                type="button"
+                variant="secondary"
                 onClick={() => setEditModal({ open: false, loan: null })}
               >
                 Cancel
@@ -904,11 +907,10 @@ export default function AdminPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
-                  showFilters || hasActiveFilters
-                    ? 'bg-primary-50 border-primary-200 text-primary-700'
-                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                }`}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${showFilters || hasActiveFilters
+                  ? 'bg-primary-50 border-primary-200 text-primary-700'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                  }`}
               >
                 <Filter className="w-4 h-4" />
                 <span className="text-sm font-medium">Filters</span>
@@ -927,7 +929,7 @@ export default function AdminPage() {
               )}
             </div>
           </div>
-          
+
           {/* Filters Panel */}
           {showFilters && (
             <div className="mt-4 pt-4 border-t border-gray-100">
@@ -937,12 +939,11 @@ export default function AdminPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                   <select
                     value={statusFilter}
-                    onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                    onChange={(e) => { setStatusFilter(e.target.value); setEligibilityFilter('ALL'); setCurrentPage(1); }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="ALL">All Statuses</option>
                     <option value={WORKFLOW_STATES.DRAFT}>Draft</option>
-                    <option value={WORKFLOW_STATES.KYC_PENDING}>KYC Pending</option>
                     <option value={WORKFLOW_STATES.KYC_COMPLETED}>KYC Completed</option>
                     <option value={WORKFLOW_STATES.CREDIT_CHECK_PENDING}>Credit Check Pending</option>
                     <option value={WORKFLOW_STATES.CREDIT_CHECK_COMPLETED}>Credit Check Completed</option>
@@ -950,48 +951,77 @@ export default function AdminPage() {
                     <option value={WORKFLOW_STATES.NOT_ELIGIBLE}>Not Eligible</option>
                   </select>
                 </div>
-                
+
                 {/* Eligibility Quick Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Quick Filter</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setEligibilityFilter('ALL'); setStatusFilter('ALL'); setCurrentPage(1); }}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        eligibilityFilter === 'ALL' && statusFilter === 'ALL'
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${eligibilityFilter === 'ALL' && statusFilter === 'ALL'
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       All
                     </button>
                     <button
+                      onClick={() => { setEligibilityFilter('PENDING'); setStatusFilter('ALL'); setCurrentPage(1); }}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${eligibilityFilter === 'PENDING'
+                        ? 'bg-yellow-500 text-white border-yellow-500'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      Pending
+                    </button>
+                    <button
                       onClick={() => { setEligibilityFilter('ELIGIBLE'); setStatusFilter('ALL'); setCurrentPage(1); }}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        eligibilityFilter === 'ELIGIBLE'
-                          ? 'bg-green-500 text-white border-green-500'
-                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${eligibilityFilter === 'ELIGIBLE'
+                        ? 'bg-green-500 text-white border-green-500'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       Eligible
                     </button>
                     <button
                       onClick={() => { setEligibilityFilter('NOT_ELIGIBLE'); setStatusFilter('ALL'); setCurrentPage(1); }}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        eligibilityFilter === 'NOT_ELIGIBLE'
-                          ? 'bg-red-500 text-white border-red-500'
-                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${eligibilityFilter === 'NOT_ELIGIBLE'
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       Not Eligible
                     </button>
                   </div>
                 </div>
               </div>
+
+              {/* Search Bar */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search by Name</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    placeholder="Type to search by applicant name..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  {searchQuery && (
+                    <button
+                      onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
-        
+
         {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>
@@ -1029,7 +1059,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <img 
+                            <img
                               src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(loan.full_name)}`}
                               alt={loan.full_name}
                               className="w-8 h-8 rounded-full"
@@ -1058,11 +1088,10 @@ export default function AdminPage() {
                           <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{loan.pan}</span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
-                            loan.employment_type === 'SALARIED' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-purple-100 text-purple-700'
-                          }`}>
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${loan.employment_type === 'SALARIED'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-purple-100 text-purple-700'
+                            }`}>
                             <Briefcase className="w-3 h-3" />
                             {loan.employment_type}
                           </span>
@@ -1203,21 +1232,20 @@ export default function AdminPage() {
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  
+
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <button
                       key={page}
                       onClick={() => goToPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-primary-500 text-dark-900'
-                          : 'border border-gray-200 hover:bg-gray-50'
-                      }`}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
+                        ? 'bg-primary-500 text-dark-900'
+                        : 'border border-gray-200 hover:bg-gray-50'
+                        }`}
                     >
                       {page}
                     </button>
                   ))}
-                  
+
                   <button
                     onClick={() => goToPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
