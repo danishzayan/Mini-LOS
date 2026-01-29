@@ -21,11 +21,11 @@ cd Mini-LOS
 
 ### 2. Backend Setup (FastAPI)
 ```
+pip install -r requirements.txt
+
 cd server
 python -m venv venv
 venv\Scripts\activate
-
-pip install -r requirements.txt
 
 uvicorn app.main:app --reload
 ```
