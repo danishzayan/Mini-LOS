@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/common/Button';
 import StatusBadge from '@/components/StatusBadge';
 import { WORKFLOW_STATES } from '@/utils/constants';
-import { CheckCircle, XCircle, ArrowRight, Home, Trophy, FileText, User, IndianRupee, Award, CreditCard, Clock, PartyPopper } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Home, Trophy, FileText, User, IndianRupee, Award, CreditCard, Clock, PartyPopper, LayoutDashboard } from 'lucide-react';
 
 export default function EligibilityResult({ loan, onReset }) {
   const router = useRouter();
@@ -165,11 +165,11 @@ export default function EligibilityResult({ loan, onReset }) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button
             variant="secondary"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/my-applications')}
             className="gap-2"
           >
-            <Home className="h-4 w-4" />
-            Go Home
+            <LayoutDashboard className="h-4 w-4" />
+            Go Dashboard
           </Button>
           
           {isEligible ? (

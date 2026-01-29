@@ -64,20 +64,23 @@ def create_loan_application(
     - Loan amount <= 20 × monthly income
     - Max 5 active loans per user
     """
-    # Count active loans for this user (not in terminal states)
+    # Only count applications that are truly active (not ELIGIBLE or NOT_ELIGIBLE)
+    active_statuses = [
+        ApplicationStatus.DRAFT.value,
+        ApplicationStatus.KYC_PENDING.value,
+        ApplicationStatus.KYC_COMPLETED.value,
+        ApplicationStatus.CREDIT_CHECK_PENDING.value,
+        ApplicationStatus.CREDIT_CHECK_COMPLETED.value
+    ]
     active_loans_count = db.query(LoanApplication).filter(
         LoanApplication.user_id == current_user.id,
-        LoanApplication.status.notin_([
-            ApplicationStatus.ELIGIBLE.value,
-            ApplicationStatus.NOT_ELIGIBLE.value
-        ])
+        LoanApplication.status.in_(active_statuses)
     ).count()
-    
+
     if active_loans_count >= MAX_ACTIVE_LOANS_PER_USER:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Maximum {MAX_ACTIVE_LOANS_PER_USER} active loan applications allowed per user. "
-                   f"You currently have {active_loans_count} active applications."
+            detail="You have reached the maximum of 5 active loan applications. Complete or wait for existing applications to proceed."
         )
     
     # Validate application data
@@ -91,16 +94,13 @@ def create_loan_application(
     if not validation_result["is_valid"]:
         raise_bad_request("; ".join(validation_result["errors"]))
     
-    # Check for existing application with same PAN (for this user)
+    # Check for existing application with same PAN (for this user) in active statuses
     existing = db.query(LoanApplication).filter(
         LoanApplication.user_id == current_user.id,
         LoanApplication.pan == application.pan,
-        LoanApplication.status.notin_([
-            ApplicationStatus.ELIGIBLE.value,
-            ApplicationStatus.NOT_ELIGIBLE.value
-        ])
+        LoanApplication.status.in_(active_statuses)
     ).first()
-    
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
