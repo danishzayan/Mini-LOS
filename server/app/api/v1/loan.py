@@ -64,23 +64,15 @@ def create_loan_application(
     - Loan amount <= 20 × monthly income
     - Max 5 active loans per user
     """
-    # Only count applications that are truly active (not ELIGIBLE or NOT_ELIGIBLE)
-    active_statuses = [
-        ApplicationStatus.DRAFT.value,
-        ApplicationStatus.KYC_PENDING.value,
-        ApplicationStatus.KYC_COMPLETED.value,
-        ApplicationStatus.CREDIT_CHECK_PENDING.value,
-        ApplicationStatus.CREDIT_CHECK_COMPLETED.value
-    ]
-    active_loans_count = db.query(LoanApplication).filter(
-        LoanApplication.user_id == current_user.id,
-        LoanApplication.status.in_(active_statuses)
+    # Count ALL applications for this user (regardless of status)
+    total_loans_count = db.query(LoanApplication).filter(
+        LoanApplication.user_id == current_user.id
     ).count()
 
-    if active_loans_count >= MAX_ACTIVE_LOANS_PER_USER:
+    if total_loans_count >= MAX_ACTIVE_LOANS_PER_USER:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have reached the maximum of 5 active loan applications. Complete or wait for existing applications to proceed."
+            detail="Maximum can fill 5 applications for the loan"
         )
     
     # Validate application data
@@ -94,7 +86,14 @@ def create_loan_application(
     if not validation_result["is_valid"]:
         raise_bad_request("; ".join(validation_result["errors"]))
     
-    # Check for existing application with same PAN (for this user) in active statuses
+    # Check for existing application with same PAN (for this user)
+    active_statuses = [
+        ApplicationStatus.DRAFT.value,
+        ApplicationStatus.KYC_PENDING.value,
+        ApplicationStatus.KYC_COMPLETED.value,
+        ApplicationStatus.CREDIT_CHECK_PENDING.value,
+        ApplicationStatus.CREDIT_CHECK_COMPLETED.value
+    ]
     existing = db.query(LoanApplication).filter(
         LoanApplication.user_id == current_user.id,
         LoanApplication.pan == application.pan,
