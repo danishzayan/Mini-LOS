@@ -47,7 +47,7 @@ npm run dev
 Set Admin User (`is_admin = true`)
 To enable **admin login**, the `is_admin` field must be set to `true` for the required user in the `users` table.
 
-### 🔹 SQL Query (PostgreSQL)
+### SQL Query (PostgreSQL)
 
 ```sql
 UPDATE users
