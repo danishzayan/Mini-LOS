@@ -31,6 +31,17 @@ router = APIRouter(prefix="/loan", tags=["Loan Application"])
 MAX_ACTIVE_LOANS_PER_USER = 5
 
 
+@router.get("/stats/total")
+def get_total_applications_count(
+    db: Session = Depends(get_db)
+):
+    """
+    Get total count of all loan applications (public endpoint for homepage stats).
+    """
+    total = db.query(LoanApplication).count()
+    return {"total": total}
+
+
 @router.get("/my-loans", response_model=list[LoanApplicationResponse])
 def get_my_loans(
     db: Session = Depends(get_db),

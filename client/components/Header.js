@@ -38,18 +38,18 @@ export default function Header() {
     const handleStorageChange = () => {
       checkUser();
     };
-    
+
     // Listen for custom auth event (fired when login/logout happens)
     const handleAuthChange = () => {
       checkUser();
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authChange', handleAuthChange);
-    
+
     // Also check on pathname change (navigation)
     checkUser();
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authChange', handleAuthChange);
@@ -76,12 +76,12 @@ export default function Header() {
     router.refresh();
   };
 
-  const avatarUrl = user 
+  const avatarUrl = user
     ? `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email)}`
     : null;
 
   return (
-    <header className="bg-white border-b border-dark-200 sticky top-0 z-50">
+    <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -93,15 +93,13 @@ export default function Header() {
           <nav className="flex items-center gap-6">
             {/* Hide Admin link if user is admin (they can access via dropdown) */}
             {(!user || !user.is_admin) && (
-              <Link 
-                href="/admin" 
-                className={`font-medium transition-colors duration-200 flex items-center gap-1.5 ${
-                  pathname === '/admin' 
-                    ? 'text-primary-600' 
-                    : 'text-dark-600 hover:text-primary-600'
-                }`}
+              <Link
+                href="/admin"
+                className={`font-medium transition-colors duration-200 flex items-center gap-1.5 ${pathname === '/admin'
+                  ? 'text-primary-600'
+                  : 'text-dark-600 hover:text-primary-600'
+                  }`}
               >
-                <Shield className="w-4 h-4" />
                 Admin
               </Link>
             )}
@@ -117,9 +115,8 @@ export default function Header() {
                     <img
                       src={avatarUrl}
                       alt={user.full_name || 'User'}
-                      className={`w-9 h-9 rounded-full border-2 shadow-sm ${
-                        user.is_admin ? 'border-violet-500' : 'border-primary-400'
-                      }`}
+                      className={`w-9 h-9 rounded-full border-2 shadow-sm ${user.is_admin ? 'border-violet-500' : 'border-primary-400'
+                        }`}
                     />
                     {user.is_admin && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center border-2 border-white">
@@ -161,7 +158,7 @@ export default function Header() {
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Menu Links */}
                     <div className="py-1 border-b border-dark-100">
                       {!user.is_admin && (
@@ -185,7 +182,7 @@ export default function Header() {
                         </Link>
                       )}
                     </div>
-                    
+
                     {/* Logout Button */}
                     <button
                       onClick={handleLogout}
@@ -200,7 +197,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/auth"
-                className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-dark-900 font-semibold rounded-lg hover:bg-primary-400 transition-colors duration-200 shadow-sm"
+                className="flex items-center gap-2 px-5 py-2 bg-primary-500 text-dark-900 font-semibold rounded-lg hover:bg-primary-400 transition-colors duration-200 shadow-sm"
               >
                 Login
               </Link>
