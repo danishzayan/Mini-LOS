@@ -52,8 +52,8 @@ class MockCibilService(CreditBureauService):
         self, 
         min_credit_score: int = 600, 
         max_credit_score: int = 800,
-        min_active_loans: int = 0,
-        max_active_loans: int = 7
+        min_active_loans: int = 1,
+        max_active_loans: int = 5
     ):
         self.min_credit_score = min_credit_score
         self.max_credit_score = max_credit_score
@@ -84,15 +84,11 @@ class MockCibilService(CreditBureauService):
         # 80% chance of getting passing values
         if rng.random() < 0.8:
             credit_score = rng.randint(650, 800)  # Passing score (>=650)
-            active_loans = rng.randint(0, 5)       # Passing loans (<=5)
+            active_loans = rng.randint(1, 5)       # Passing loans (<=5)
         else:
-            # 20% chance of failure - randomly choose which rule to fail
-            if rng.random() < 0.5:
-                credit_score = rng.randint(600, 649)  # Failing score
-                active_loans = rng.randint(0, 5)       # OK loans
-            else:
-                credit_score = rng.randint(650, 800)  # OK score
-                active_loans = rng.randint(6, 7)       # Failing loans
+            # 20% chance of failure - fail due to low credit score
+            credit_score = rng.randint(600, 649)  # Failing score
+            active_loans = rng.randint(1, 5)       # OK loans
         
         return (credit_score, active_loans)
     

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { loanService, authService } from '@/services/loan.service';
 import { API_ENDPOINTS } from '@/utils/constants';
 import axios from 'axios';
-import { 
-  FileText, Clock, CheckCircle, XCircle, AlertCircle, 
+import {
+  FileText, Clock, CheckCircle, XCircle, AlertCircle,
   Loader2, Edit2, Eye, ArrowRight, Plus, RefreshCw,
-  TrendingUp, IndianRupee
+  TrendingUp, IndianRupee, History, User, CreditCard, X
 } from 'lucide-react';
 import Button from '@/components/common/Button';
 
@@ -71,11 +71,11 @@ const EditModal = ({ loan, onClose, onSave }) => {
     if (!formData.full_name.trim()) newErrors.full_name = 'Required';
     if (!formData.mobile.trim()) newErrors.mobile = 'Required';
     else if (!/^[6-9]\d{9}$/.test(formData.mobile)) newErrors.mobile = 'Invalid phone';
-    if (!formData.monthly_income || parseFloat(formData.monthly_income) <= 0) 
+    if (!formData.monthly_income || parseFloat(formData.monthly_income) <= 0)
       newErrors.monthly_income = 'Required';
-    if (!formData.loan_amount || parseFloat(formData.loan_amount) <= 0) 
+    if (!formData.loan_amount || parseFloat(formData.loan_amount) <= 0)
       newErrors.loan_amount = 'Required';
-    else if (parseFloat(formData.loan_amount) > parseFloat(formData.monthly_income) * 20) 
+    else if (parseFloat(formData.loan_amount) > parseFloat(formData.monthly_income) * 20)
       newErrors.loan_amount = 'Cannot exceed 20x income';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -90,7 +90,7 @@ const EditModal = ({ loan, onClose, onSave }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    
+
     setSaving(true);
     try {
       await onSave(loan.id, {
@@ -115,7 +115,7 @@ const EditModal = ({ loan, onClose, onSave }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-primary-500 to-primary-600 rounded-t-2xl">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-primary-500 rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
               <Edit2 className="w-5 h-5 text-white" />
@@ -338,65 +338,266 @@ export default function MyApplicationsPage() {
       setViewingLoanLoading(false);
     }
   };
-// Loan Details Modal
-const LoanDetailsModal = ({ loan, onClose, loading, error }) => {
-  if (!loan && !loading) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-primary-500 to-primary-600 rounded-t-2xl">
-          <div>
-            <h2 className="text-lg font-bold text-white">Application Details</h2>
-            <p className="text-sm text-white/80">Application #{loan?.id}</p>
-          </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white text-2xl font-light">×</button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
-            <div className="text-center py-8 text-primary-600 font-semibold">Loading details...</div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-600 font-semibold">{error}</div>
-          ) : (
-            <>
-              <h3 className="font-bold text-dark-900 mb-2">Applicant Info</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div><span className="text-xs text-gray-500">Full Name</span><div className="font-medium">{loan.full_name}</div></div>
-                <div><span className="text-xs text-gray-500">Mobile</span><div className="font-medium">{loan.mobile}</div></div>
-                <div><span className="text-xs text-gray-500">PAN</span><div className="font-medium">{loan.pan}</div></div>
-                <div><span className="text-xs text-gray-500">DOB</span><div className="font-medium">{loan.dob}</div></div>
-                <div><span className="text-xs text-gray-500">Email</span><div className="font-medium">{loan.email}</div></div>
-                <div><span className="text-xs text-gray-500">Employment Type</span><div className="font-medium">{loan.employment_type}</div></div>
-                <div><span className="text-xs text-gray-500">Monthly Income</span><div className="font-medium">₹{loan.monthly_income?.toLocaleString()}</div></div>
-                <div><span className="text-xs text-gray-500">Loan Amount</span><div className="font-medium">₹{loan.loan_amount?.toLocaleString()}</div></div>
-                <div className="md:col-span-2"><span className="text-xs text-gray-500">Address</span><div className="font-medium">{loan.address || '-'}</div></div>
+  // Loan Details Modal - Enhanced Journey Style
+  const LoanDetailsModal = ({ loan, onClose, loading, error }) => {
+    if (!loan && !loading) return null;
+
+    const formatDate = (dateString) => {
+      if (!dateString) return '-';
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+          {/* Fixed Header */}
+          <div className="flex-shrink-0 bg-gradient-to-r from-primary-50 to-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-primary-100 rounded-xl shadow-sm">
+                <History className="w-5 h-5 text-primary-600" />
               </div>
-              <h3 className="font-bold text-dark-900 mb-2">KYC Result</h3>
-              {loan.kyc_result ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div><span className="text-xs text-gray-500">Status</span><div className="font-medium">{loan.kyc_result.status}</div></div>
-                  <div><span className="text-xs text-gray-500">Name Match Score</span><div className="font-medium">{loan.kyc_result.name_match_score}</div></div>
-                  <div><span className="text-xs text-gray-500">PAN Verified</span><div className="font-medium">{loan.kyc_result.pan_verified}</div></div>
-                  <div><span className="text-xs text-gray-500">Address Verified</span><div className="font-medium">{loan.kyc_result.address_verified}</div></div>
-                  <div className="md:col-span-2"><span className="text-xs text-gray-500">Checked At</span><div className="font-medium">{loan.kyc_result.created_at ? new Date(loan.kyc_result.created_at).toLocaleString() : '-'}</div></div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Application Journey</h3>
+                <p className="text-sm text-gray-500">#{loan?.id} • {loan?.full_name}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {loading ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-500 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">Loading details...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-600 font-semibold">{error}</div>
+            ) : (
+              <div className="relative">
+                {/* Application Submitted */}
+                <div className="flex gap-4 pb-8">
+                  <div className="flex flex-col items-center">
+                    <div className="w-11 h-11 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="w-0.5 h-full bg-gradient-to-b from-blue-200 to-gray-200 mt-2"></div>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <h4 className="font-semibold text-gray-900">Application Submitted</h4>
+                    <p className="text-sm text-gray-500 mt-1">{formatDate(loan?.created_at)}</p>
+                    <div className="mt-3 bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 text-sm border border-gray-100 shadow-sm">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Amount</span>
+                          <span className="font-semibold text-gray-900">₹{(loan?.loan_amount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Purpose</span>
+                          <span className="font-semibold text-gray-900">{loan?.loan_purpose || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Employment</span>
+                          <span className="font-semibold text-gray-900">{loan?.employment_type}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-400 uppercase tracking-wide">Income</span>
+                          <span className="font-semibold text-gray-900">₹{(loan?.monthly_income || 0).toLocaleString('en-IN')}/mo</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ) : <div className="mb-6 text-gray-500">No KYC result</div>}
-              <h3 className="font-bold text-dark-900 mb-2">Credit Result</h3>
-              {loan.credit_result ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                  <div><span className="text-xs text-gray-500">Credit Score</span><div className="font-medium">{loan.credit_result.credit_score}</div></div>
-                  <div><span className="text-xs text-gray-500">Active Loans</span><div className="font-medium">{loan.credit_result.active_loans}</div></div>
-                  <div><span className="text-xs text-gray-500">Approved</span><div className="font-medium">{loan.credit_result.is_approved ? 'Yes' : 'No'}</div></div>
-                  <div className="md:col-span-2"><span className="text-xs text-gray-500">Rejection Reason</span><div className="font-medium">{loan.credit_result.rejection_reason || '-'}</div></div>
-                  <div className="md:col-span-2"><span className="text-xs text-gray-500">Checked At</span><div className="font-medium">{loan.credit_result.created_at ? new Date(loan.credit_result.created_at).toLocaleString() : '-'}</div></div>
+
+                {/* KYC Verification */}
+                <div className="flex gap-4 pb-8">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${loan?.kyc_result
+                      ? loan.kyc_result.status === 'PASSED'
+                        ? 'bg-gradient-to-br from-green-100 to-green-200'
+                        : 'bg-gradient-to-br from-red-100 to-red-200'
+                      : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                      }`}>
+                      <User className={`w-5 h-5 ${loan?.kyc_result
+                        ? loan.kyc_result.status === 'PASSED'
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                        : 'text-gray-400'
+                        }`} />
+                    </div>
+                    <div className={`w-0.5 h-full mt-2 ${loan?.kyc_result
+                      ? loan.kyc_result.status === 'PASSED'
+                        ? 'bg-gradient-to-b from-green-200 to-gray-200'
+                        : 'bg-gradient-to-b from-red-200 to-gray-200'
+                      : 'bg-gray-200'
+                      }`}></div>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900">KYC Verification</h4>
+                      {loan?.kyc_result && (
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${loan.kyc_result.status === 'PASSED'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                          }`}>
+                          {loan.kyc_result.status}
+                        </span>
+                      )}
+                    </div>
+                    {loan?.kyc_result ? (
+                      <>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(loan.kyc_result.created_at)}</p>
+                        <div className="mt-3 bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 text-sm border border-gray-100 shadow-sm">
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="flex flex-col items-center p-2 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Name Match</span>
+                              <span className="font-bold text-lg text-gray-900">{loan.kyc_result.name_match_score}<span className="text-xs text-gray-400">/100</span></span>
+                            </div>
+                            <div className="flex flex-col items-center p-2 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">PAN Verified</span>
+                              <span className={`font-bold text-lg ${loan.kyc_result.pan_verified === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{loan.kyc_result.pan_verified}</span>
+                            </div>
+                            <div className="flex flex-col items-center p-2 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Address</span>
+                              <span className={`font-bold text-lg ${loan.kyc_result.address_verified === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{loan.kyc_result.address_verified}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">⏳ Pending verification</p>
+                    )}
+                  </div>
                 </div>
-              ) : <div className="mb-2 text-gray-500">No credit result</div>}
-            </>
-          )}
+
+                {/* Credit Check */}
+                <div className="flex gap-4 pb-8">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${loan?.credit_result
+                      ? loan.credit_result.is_approved
+                        ? 'bg-gradient-to-br from-green-100 to-green-200'
+                        : 'bg-gradient-to-br from-red-100 to-red-200'
+                      : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                      }`}>
+                      <CreditCard className={`w-5 h-5 ${loan?.credit_result
+                        ? loan.credit_result.is_approved
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                        : 'text-gray-400'
+                        }`} />
+                    </div>
+                    <div className={`w-0.5 h-full mt-2 ${loan?.credit_result
+                      ? loan.credit_result.is_approved
+                        ? 'bg-gradient-to-b from-green-200 to-gray-200'
+                        : 'bg-gradient-to-b from-red-200 to-gray-200'
+                      : 'bg-gray-200'
+                      }`}></div>
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900">Credit Check</h4>
+                      {loan?.credit_result && (
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${loan.credit_result.is_approved
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                          }`}>
+                          {loan.credit_result.is_approved ? 'APPROVED' : 'REJECTED'}
+                        </span>
+                      )}
+                    </div>
+                    {loan?.credit_result ? (
+                      <>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(loan.credit_result.created_at)}</p>
+                        <div className="mt-3 bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 text-sm border border-gray-100 shadow-sm">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col items-center p-3 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Credit Score</span>
+                              <span className={`font-bold text-2xl ${loan.credit_result.credit_score >= 650 ? 'text-green-600' : 'text-red-600'}`}>{loan.credit_result.credit_score}</span>
+                            </div>
+                            <div className="flex flex-col items-center p-3 bg-white rounded-lg border border-gray-100">
+                              <span className="text-xs text-gray-400 uppercase tracking-wide">Active Loans</span>
+                              <span className="font-bold text-2xl text-gray-900">{loan.credit_result.active_loans}</span>
+                            </div>
+                          </div>
+                          {loan.credit_result.rejection_reason && (
+                            <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                              <span className="text-xs text-red-500 uppercase tracking-wide">Rejection Reason</span>
+                              <p className="font-medium text-red-700 mt-1">{loan.credit_result.rejection_reason}</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">⏳ Pending credit check</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Final Decision */}
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white ${loan?.status === 'ELIGIBLE'
+                      ? 'bg-gradient-to-br from-green-400 to-green-500'
+                      : loan?.status === 'NOT_ELIGIBLE'
+                        ? 'bg-gradient-to-br from-red-400 to-red-500'
+                        : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                      }`}>
+                      {loan?.status === 'ELIGIBLE' ? (
+                        <CheckCircle className="w-5 h-5 text-white" />
+                      ) : loan?.status === 'NOT_ELIGIBLE' ? (
+                        <XCircle className="w-5 h-5 text-white" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900">Final Decision</h4>
+                      <StatusBadge status={loan?.status} />
+                    </div>
+                    {loan?.status === 'ELIGIBLE' || loan?.status === 'NOT_ELIGIBLE' ? (
+                      <div className="mt-3 text-sm">
+                        {loan?.status === 'ELIGIBLE' ? (
+                          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 shadow-sm">
+                            <p className="text-green-700 font-medium">🎉 Congratulations! Your loan application has been approved.</p>
+                          </div>
+                        ) : (
+                          <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-4 border border-red-200 shadow-sm">
+                            <p className="text-red-700 font-medium">Your application was not approved based on the eligibility criteria.</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">⏳ Awaiting final decision</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Fixed Footer */}
+          <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end rounded-b-2xl">
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   // Refresh data
   const refreshData = async () => {
@@ -537,6 +738,7 @@ const LoanDetailsModal = ({ loan, onClose, loading, error }) => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">PAN</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
@@ -549,6 +751,9 @@ const LoanDetailsModal = ({ loan, onClose, loading, error }) => {
                   <tr key={loan.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900">#{loan.id}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">{loan.full_name}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-700 font-mono">{loan.pan}</span>
