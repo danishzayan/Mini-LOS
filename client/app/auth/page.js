@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/services/loan.service';
 import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
-import { LogIn, UserPlus, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, User, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/my-applications';
@@ -332,5 +332,17 @@ export default function AuthPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 }

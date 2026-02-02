@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Stepper from '@/components/Stepper';
 import OnboardingForm from '@/components/forms/OnboardingForm';
@@ -12,14 +12,14 @@ import { authService } from '@/services/loan.service';
 import { WORKFLOW_STATES, STATE_TO_STEP } from '@/utils/constants';
 import { AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 
-export default function LoanApplyPage() {
+function LoanApplyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const continueId = searchParams.get('continue');
-  
+
   const [authChecking, setAuthChecking] = useState(true);
   const [user, setUser] = useState(null);
-  
+
   const {
     loan,
     loading,
@@ -48,7 +48,7 @@ export default function LoanApplyPage() {
         const userData = await authService.getMe();
         setUser(userData);
         setAuthChecking(false);
-        
+
         // If continuing an existing application, fetch it
         if (continueId) {
           await fetchLoan(parseInt(continueId));
@@ -72,8 +72,8 @@ export default function LoanApplyPage() {
       }
       // Mark current step as completed if moving to next
       const status = loan.status || loan.workflow_state;
-      if ([WORKFLOW_STATES.KYC_COMPLETED, WORKFLOW_STATES.CREDIT_CHECK_COMPLETED, 
-           WORKFLOW_STATES.ELIGIBLE, WORKFLOW_STATES.NOT_ELIGIBLE].includes(status)) {
+      if ([WORKFLOW_STATES.KYC_COMPLETED, WORKFLOW_STATES.CREDIT_CHECK_COMPLETED,
+      WORKFLOW_STATES.ELIGIBLE, WORKFLOW_STATES.NOT_ELIGIBLE].includes(status)) {
         completed.push(step);
       }
       setCompletedSteps(completed);
@@ -125,8 +125,8 @@ export default function LoanApplyPage() {
       return <CreditStep loan={loan} onSubmit={handleCreditCheck} loading={loading} />;
     }
 
-    if (state === WORKFLOW_STATES.CREDIT_CHECK_PENDING || 
-        state === WORKFLOW_STATES.CREDIT_CHECK_COMPLETED) {
+    if (state === WORKFLOW_STATES.CREDIT_CHECK_PENDING ||
+      state === WORKFLOW_STATES.CREDIT_CHECK_COMPLETED) {
       return <CreditStep loan={loan} onSubmit={handleCreditCheck} loading={loading} />;
     }
 
@@ -190,5 +190,20 @@ export default function LoanApplyPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoanApplyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary-500 mx-auto mb-4" />
+          <p className="text-dark-500">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoanApplyContent />
+    </Suspense>
   );
 }
